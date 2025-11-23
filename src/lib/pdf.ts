@@ -301,6 +301,7 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
   const infoRight = [
     `INSPECTOR: ${job.customerName || "-"}`,
     `DATE: ${new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai' })}`,
+    `CURRENT ODO: ${job.odometer || "-"}`,
   ];
 
   let infoY = y - 20;

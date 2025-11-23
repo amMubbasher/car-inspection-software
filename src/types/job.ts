@@ -5,7 +5,8 @@ export type InspectionType =
   | "Paint inspection" 
   | "Paint and chassis inspection" 
   | "OBD inspection" 
-  | "360 inspection";
+  | "360 inspection"
+  | "Auction Comprehensive Inspection";
 
 export interface SubIssue {
   key: string;
@@ -27,6 +28,7 @@ export interface Job {
   carNumber: string;
   customerName: string;
   engineNumber?: string;
+  odometer?: number;
   inspectionType?: InspectionType;
   status: "pending" | "in_progress" | "completed" | "rejected" | "accepted";
   assignedTo?: {

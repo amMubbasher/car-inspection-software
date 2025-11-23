@@ -18,6 +18,7 @@ export default function PostJobPage() {
     carNumber: "",
     customerName: "",
     engineNumber: "",
+    odometer: undefined,
     status: "pending",
     inspectionTabs: [],
   });
@@ -123,6 +124,7 @@ export default function PostJobPage() {
         carNumber: form.carNumber,
         customerName: form.customerName,
         engineNumber: form.engineNumber,
+        odometer: form.odometer,
         inspectionType: form.inspectionType,
         inspectionTabs: form.inspectionTabs,
         status: "pending",
@@ -190,6 +192,18 @@ export default function PostJobPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Odometer
+          </label>
+          <input
+            type="number"
+            placeholder="Odometer Reading"
+            value={form.odometer || ""}
+            onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Inspection Type <span className="text-red-500">*</span>
           </label>
           <select
@@ -203,6 +217,7 @@ export default function PostJobPage() {
             <option value="Paint and chassis inspection">Paint and chassis inspection</option>
             <option value="OBD inspection">OBD inspection</option>
             <option value="360 inspection">360 inspection</option>
+            <option value="Auction Comprehensive Inspection">Auction Comprehensive Inspection</option>
           </select>
         </div>
       </div>

@@ -27,6 +27,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
     customerName: job.customerName || "",
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
+    odometer: job.odometer || 0,
     inspectionTabs: []
   });
 
@@ -93,6 +94,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
       customerName: job.customerName || "",
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
+      odometer: job.odometer || 0,
       inspectionTabs: mergedTabs
     });
     
@@ -120,6 +122,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
           customerName: formData.customerName,
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
+          odometer: formData.odometer,
           inspectionTabs: formData.inspectionTabs
         })
       });
@@ -559,6 +562,15 @@ const handleEdit = () => {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="odometer">Current Odo</Label>
+                    <Input
+                      id="odometer"
+                      value={formData.odometer}
+                      onChange={(e) => setFormData({ ...formData, odometer: Number(e.target.value) })}
+                      placeholder="Enter current odo"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inspectionType">Inspection Type *</Label>
                     <select
                       id="inspectionType"
@@ -572,6 +584,7 @@ const handleEdit = () => {
                       <option value="Paint and chassis inspection">Paint and chassis inspection</option>
                       <option value="OBD inspection">OBD inspection</option>
                       <option value="360 inspection">360 inspection</option>
+                      <option value="Auction Comprehensive Inspection">Auction Comprehensive Inspection</option>
                     </select>
                   </div>
                 </div>

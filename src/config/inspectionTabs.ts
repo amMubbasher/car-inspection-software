@@ -238,6 +238,129 @@ export const inspectionTabs = [
     { key: "cruiseControl", label: "Cruise Control" },
     { key: "others", label: "Others" }
   ]
+},
+
+{
+  key: "exterior",
+  label: "Exterior",
+  classification: ["Auction Comprehensive Inspection"],
+  subIssues: [
+    { key: "bodyPanelInspection", label: "Body Panel Inspection" },
+    { key: "bumperFasciaInspection", label: "Bumper, Fascia Inspection" },
+    { key: "hoodBootTailgateRoof", label: "Hood, Boot (Trunk), Tailgate & Roof" },
+    { key: "doorsInspection", label: "Doors Inspection" },
+    { key: "powerLiftGate", label: "Power Lift Gate, Power-Sliding Door Operation" },
+    { key: "grilleTrimRoofRack", label: "Grille, Trim and Roof Rack Inspection" },
+    { key: "windowGlassInspection", label: "Windshield, Side and Rear-Window Glass Inspection" },
+    { key: "outsideMirrorInspection", label: "Outside Mirror Inspection" },
+    { key: "paintCheck", label: "Paint Check" }
+  ],
+},
+{
+  key: "interior",
+  label: "Interior",
+  classification: ["Auction Comprehensive Inspection"],
+  subIssues: [
+    { key: "airbags", label: "Airbags" },
+    { key: "safetyBelts", label: "Safety belts" },
+    { key: "washers", label: "Washers" },
+    { key: "manualOutsideMirrors", label: "Manual outside Rearview Mirrors" },
+    { key: "rearViewCamera", label: "Rear View Camera" },
+    { key: "activeParkAssist", label: "Active Park Assist" },
+    { key: "sunVisorsVanityMirror", label: "Sun Visors, Vanity Mirror and Light" },
+    { key: "interiorOdorFree", label: "Interior Odor-Free" },
+    { key: "carpet", label: "Carpet" },
+    { key: "doorTrimPanels", label: "Door Trim and Door Panels" },
+    { key: "seatAdjustment", label: "Seat and Head Restraint Adjustment" },
+    { key: "foldingSeats", label: "Folding Seats" },
+    { key: "doorLocks", label: "Door Locks" },
+    { key: "windowControls", label: "Window Controls" },
+    { key: "absWarningLight", label: "ABS Warning Light" },
+    { key: "tirePressureMonitoringLight", label: "Tire Pressure Monitoring System Light" },
+    { key: "wipers", label: "Wipers" },
+    { key: "horn", label: "Horn" },
+    { key: "acCompressor", label: "Air conditioning Compressor" },
+  ],
+},
+{
+  key: "underhood",
+  label: "Under Hood",
+  classification: ["Auction Comprehensive Inspection"],
+  subIssues: [
+    { key: "transferCase", label: "Transfer Case" },
+    { key: "driveAxle", label: "Drive Axle" },
+    { key: "acSystemCharge", label: "Air Conditioning System Charge" },
+    { key: "coolantInOil", label: "Water, Sludge or Engine Coolant in Oil" },
+    { key: "engineMounts", label: "Engine Mounts" },
+    { key: "coolantRecoveryTank", label: "Coolant Recover Tank" },
+    { key: "starterOperation", label: "Starter Operation" },
+    { key: "radiator", label: "Radiator" },
+    { key: "fluidLeaks", label: "Fluid Leaks" },
+    { key: "powerSteeringFluid", label: "Power Steering Fluid" },
+    { key: "coolant", label: "Coolant" },
+    { key: "brakeFluid", label: "Brake Fluid" },
+    { key: "engineOrGearOilLeak", label: "Engine or Gear Oil Leak" },
+  ],
+},
+{
+key: "underChassis",
+label: "Under Chassis Inspection",
+classification: ["Auction Comprehensive Inspection"],
+subIssues: [
+  { key: "chassisCondition", label: "Chassis Condition" },
+  { key: "exhaustSystemCondition", label: "Exhaust System Condition" },
+  { key: "emissionsControlTest", label: "Emissions Control Test" },
+  { key: "automaticTransmissionTransaxle", label: "Automatic Transmission, Transaxle" },
+  { key: "fourByFourHubOperation", label: "4x4 Hub Operation" },
+  { key: "universalJointsCVJointsBoots", label: "Universal Joints, CV Joints and CV Joint Boots" },
+  { key: "transmissionMounts", label: "Transmission Mounts (not cracked, broken or oil soaked)" },
+  { key: "differentialDriveAxle", label: "Differential, Drive Axle" },
+  { key: "tireCondition", label: "Tires Condition" },
+  { key: "tieRodsIdlerArm", label: "Tie-Rods and Idler Arm" },
+  { key: "strutsShocks", label: "Struts and Shock" },
+  { key: "wheelAlignment", label: "Wheel Alignment (check if necessary)" },
+  { key: "floorInspection", label: "Floor Inspection" },
+  { key: "frameCrossMembersBulkhead", label: "Frame and Cross Members & Bulkhead" },
+  { key: "wheels", label: "Wheels" },
+  { key: "tirePressure", label: "Tire Pressure" }
+]
+},
+{
+key: "brakes",
+label: "Brake",
+classification: ["Auction Comprehensive Inspection"],
+subIssues: [
+  { key: "brakePadsShoes", label: "Brake Pads and Shoes" },
+  { key: "parkingBrake", label: "Parking Brake" },
+],
+},
+{
+  key: "diagnostics",
+  label: "Diagnostics",
+  classification: ["Auction Comprehensive Inspection"],
+  subIssues: [
+    { key: "obdCheck", label: "On Board Diagnostics Check (OBD)" },
+  ],
+},
+{
+key: "roadTest",
+label: "Road Test",
+classification: ["Auction Comprehensive Inspection"],
+subIssues: [
+  { key: "engineStartsIdles", label: "Engine Starts and Idles Operation" },
+  { key: "engineAcceleratesCruises", label: "Engine Accelerates and Cruises Properly & Smoothly" },
+  { key: "engineNoiseNormal", label: "Engine Noise Normal (Cold/Hot & High/Low Speeds)" },
+  { key: "transmissionShiftQuality", label: "Auto/Manual Transmission/Transaxle Operation – Cold and Hot Shift Quality" },
+  { key: "transmissionNoiseNormal", label: "Auto/Manual Transmission/Transaxle Noise Normal – Cold and Hot" },
+  { key: "shiftInterlockOperates", label: "Shift Interlock Operates Properly" },
+  { key: "strutsShocksOperate", label: "Struts/Shocks Operate Properly" },
+  { key: "brakesAbsOperate", label: "Brakes/ABS Operate Properly" },
+  { key: "gaugesOperate", label: "Gauges Operate Properly" },
+  { key: "driverSelectMemorySystems", label: "Driver Select/Memory Profile Systems" },
+  { key: "noAbnormalWindNoise", label: "No Abnormal Wind Noise" },
+  { key: "cruiseControl", label: "Cruise Control" },
+  { key: "others", label: "Others" }
+]
 }
 
 ];

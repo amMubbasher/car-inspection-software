@@ -121,6 +121,7 @@ export default function EditJobPage() {
       carNumber: form.carNumber,
       customerName: form.customerName,
       engineNumber: form.engineNumber,
+      odometer: form.odometer,
       inspectionType: form.inspectionType,
       inspectionTabs: form.inspectionTabs,
     };
@@ -202,6 +203,13 @@ export default function EditJobPage() {
           onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
           className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
         />
+        <input
+          type="number"
+          placeholder="Odometer Reading"
+          value={form.odometer || ""}
+          onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+          className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        />
         <div>
           <select
             value={form.inspectionType || ""}
@@ -214,6 +222,7 @@ export default function EditJobPage() {
             <option value="Paint and chassis inspection">Paint and chassis inspection</option>
             <option value="OBD inspection">OBD inspection</option>
             <option value="360 inspection">360 inspection</option>
+            <option value="Auction Comprehensive Inspection">Auction Comprehensive Inspection</option>
           </select>
         </div>
       </div>
