@@ -5,10 +5,14 @@ import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Car, Wrench, UserCog, Home, Menu, X, LogOut } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { containerVariants, itemVariants, underlineVariants } from "@/lib/animations";
+import { LanguageModal } from '@/components/modals/LanguageModal';
+import { getSelectedCountryFlag, useGoogleTranslate } from '@/components/i18n/GoogleTranslateProvider';
+import { countryCodeToLocale } from '@/lib/countryToLocale';
+import { DEFAULT_COUNTRY_CODE } from '@/lib/popularLanguages';
 import logo from "../../logo.png"
 import Image from 'next/image';
 
@@ -17,9 +21,13 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_COUNTRY_CODE);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const languageMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: session, status } = useSession();
   const role = session?.user?.role;
+  const googleTranslate = useGoogleTranslate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,6 +36,31 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem('selectedLanguage');
+    if (savedLanguage) {
+      setSelectedLanguage(savedLanguage);
+      document.documentElement.lang = countryCodeToLocale(savedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(e.target as Node)) {
+        setLanguageOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectLanguage = (countryCode: string) => {
+    setSelectedLanguage(countryCode);
+    localStorage.setItem('selectedLanguage', countryCode);
+    document.documentElement.lang = countryCodeToLocale(countryCode);
+    googleTranslate.setLanguageByCountryCode(countryCode);
+  };
 
   if (status === 'loading') return null;
 
@@ -178,6 +211,26 @@ export default function Navbar() {
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
+          <div className="relative notranslate" ref={languageMenuRef} translate="no">
+            <motion.button
+              variants={itemVariants}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              onClick={() => setLanguageOpen((open) => !open)}
+              className="flex items-center justify-center w-9 h-9 rounded-lg border bg-background hover:bg-accent transition-colors text-xl"
+              aria-label="Select language"
+            >
+              {getSelectedCountryFlag(selectedLanguage)}
+            </motion.button>
+            <LanguageModal
+              isOpen={languageOpen}
+              selectedCountryCode={selectedLanguage}
+              onSelect={handleSelectLanguage}
+              onClose={() => setLanguageOpen(false)}
+            />
+          </div>
+
           <motion.div
             variants={itemVariants}
             whileHover={{ scale: 1.1 }}
@@ -240,6 +293,25 @@ export default function Navbar() {
               );
             })}
           <div className="mt-4 flex items-center gap-4">
+            <div className="relative notranslate" translate="no">
+              <button
+                type="button"
+                onClick={() => setLanguageOpen((open) => !open)}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border hover:bg-accent"
+              >
+                <span className="text-lg">{getSelectedCountryFlag(selectedLanguage)}</span>
+                Language
+              </button>
+              <LanguageModal
+                isOpen={languageOpen}
+                selectedCountryCode={selectedLanguage}
+                onSelect={(code) => {
+                  handleSelectLanguage(code);
+                  setMobileOpen(false);
+                }}
+                onClose={() => setLanguageOpen(false)}
+              />
+            </div>
             <ThemeToggle />
             {session && (
               <button
