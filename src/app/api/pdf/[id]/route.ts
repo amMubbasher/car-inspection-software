@@ -1,24 +1,27 @@
-// @ts-nocheck
 import { connectToDB } from "@/lib/db";
 import { Job } from "@/models/Job";
 import { NextResponse } from "next/server";
 import { generateJobPDF } from "@/lib/pdf";
+import { getLocaleFromRequest } from "@/lib/translate";
+import type { Job as JobType } from "@/types/job";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import type { Model } from "mongoose";
 
-// src/pages/api/pdf.ts
-console.log("📄 PDF API route START", new Date().toISOString());
-export async function GET(req, { params }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     await connectToDB();
-    const job = await Job.findById(params.id).lean();
+    const job = await (Job as Model<JobType>).findById(id).lean();
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    // Load banner image
-    let bannerBytes;
+    let bannerBytes: Uint8Array | undefined;
     try {
       const bannerPath = join(process.cwd(), "public", "report-banner.jpeg");
       const bannerBuffer = await readFile(bannerPath);
@@ -27,14 +30,14 @@ export async function GET(req, { params }) {
       console.warn("Failed to load banner image:", e);
     }
 
-    const pdfBytes = await generateJobPDF(job, undefined, bannerBytes);
+    const locale = getLocaleFromRequest(req);
+    const pdfBytes = await generateJobPDF(job as JobType, { locale, bannerBytes });
 
-    // Create safe filename from customer name
     const safeName = job.customerName
       ? job.customerName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
       : "unknown";
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

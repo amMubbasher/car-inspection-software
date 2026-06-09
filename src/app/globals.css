@@ -120,3 +120,59 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Google Translate chrome hiding */
+html {
+  margin-top: 0 !important;
+}
+
+body,
+html.translated-ltr body,
+html.translated-rtl body {
+  top: 0 !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  position: static !important;
+}
+
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+iframe.skiptranslate,
+body > iframe.skiptranslate,
+.skiptranslate > iframe,
+.goog-te-banner,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+.VIpgJd-ZVi9od-aZ2wEe {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  clip: rect(0, 0, 0, 0) !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+body > .skiptranslate:not(#google_translate_element) {
+  display: none !important;
+  height: 0 !important;
+}
+
+#goog-gt-tt,
+.goog-te-balloon-frame,
+#goog-gt-original-text,
+.goog-te-spinner-pos {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+.goog-te-gadget {
+  display: none !important;
+}

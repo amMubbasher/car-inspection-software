@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, Check, X, Download, Wrench, Car, User } from "lucide-react";
+import { NoTranslate } from "@/components/ui/NoTranslate";
 import { cardVariants, buttonVariants, statusVariants } from "@/lib/animations";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
 import type { Severity, InspectionType } from "@/types/job";
@@ -318,20 +319,20 @@ const handleEdit = () => {
               </motion.div>
               <div>
                 <h3 className="font-bold text-xl text-card-foreground flex items-center gap-2">
-                  {job.carNumber}
+                  <NoTranslate>{job.carNumber}</NoTranslate>
                   {isHovered && (
                     <motion.span 
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="text-xs bg-gradient-to-r from-pink-500 to-purple-500 text-white px-2 py-1 rounded-full"
                     >
-                      #{job._id.slice(-4)}
+                      <NoTranslate>#{job._id.slice(-4)}</NoTranslate>
                     </motion.span>
                   )}
                 </h3>
                 <p className="text-muted-foreground flex items-center gap-1">
                   <User className="w-4 h-4" />
-                  {job.customerName}
+                  <NoTranslate>{job.customerName}</NoTranslate>
                 </p>
               </div>
             </div>
@@ -365,7 +366,9 @@ const handleEdit = () => {
               <Wrench className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-muted-foreground">Engine</p>
-                <p className="text-card-foreground font-medium">{job.engineNumber}</p>
+                <p className="text-card-foreground font-medium">
+                  <NoTranslate>{job.engineNumber}</NoTranslate>
+                </p>
               </div>
             </div>
             
@@ -538,6 +541,8 @@ const handleEdit = () => {
                     <Label htmlFor="carNumber">Car Number *</Label>
                     <Input
                       id="carNumber"
+                      className="notranslate"
+                      translate="no"
                       value={formData.carNumber}
                       onChange={(e) => setFormData({ ...formData, carNumber: e.target.value })}
                       placeholder="Enter car number"
@@ -547,6 +552,8 @@ const handleEdit = () => {
                     <Label htmlFor="customerName">Customer Name *</Label>
                     <Input
                       id="customerName"
+                      className="notranslate"
+                      translate="no"
                       value={formData.customerName}
                       onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                       placeholder="Enter customer name"
@@ -556,6 +563,8 @@ const handleEdit = () => {
                     <Label htmlFor="engineNumber">Engine Number</Label>
                     <Input
                       id="engineNumber"
+                      className="notranslate"
+                      translate="no"
                       value={formData.engineNumber}
                       onChange={(e) => setFormData({ ...formData, engineNumber: e.target.value })}
                       placeholder="Enter engine number"
@@ -565,6 +574,8 @@ const handleEdit = () => {
                     <Label htmlFor="odometer">Current Odo</Label>
                     <Input
                       id="odometer"
+                      className="notranslate"
+                      translate="no"
                       value={formData.odometer}
                       onChange={(e) => setFormData({ ...formData, odometer: Number(e.target.value) })}
                       placeholder="Enter current odo"

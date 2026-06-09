@@ -1,21 +1,90 @@
-// lib/pdf.ts
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, PDFFont, rgb } from "pdf-lib";
 import type { Job } from "@/types/job";
+import { PDF_LABELS_EN, getPdfLabelKeys, type PdfLabels } from "@/lib/pdfLabels";
+import { embedPdfFonts, getDateLocale, shapePdfText } from "@/lib/pdfFonts";
+import { translateBatch } from "@/lib/translate";
 
-export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerBytes?: Uint8Array): Promise<Uint8Array> {
+type GenerateJobPDFOptions = {
+  locale?: string;
+  bannerBytes?: Uint8Array;
+};
+
+type IssueEntry = {
+  severity: "minor" | "major" | "ok";
+  label: string;
+  comment: string;
+};
+
+async function buildTranslatedContent(
+  job: Job,
+  locale: string
+): Promise<{ labels: PdfLabels; issues: IssueEntry[] }> {
+  const issues: IssueEntry[] = [];
+
+  for (const tab of job.inspectionTabs || []) {
+    for (const issue of tab.subIssues || []) {
+      issues.push({
+        severity: issue.severity,
+        label: issue.label ?? PDF_LABELS_EN.fallback,
+        comment: issue.comment?.trim() ?? "",
+      });
+    }
+  }
+
+  const labelKeys = getPdfLabelKeys();
+  const stringsToTranslate = [
+    ...labelKeys.map((key) => PDF_LABELS_EN[key]),
+    ...issues.map((i) => i.label),
+    ...issues.filter((i) => i.comment).map((i) => i.comment),
+  ];
+
+  const translated = await translateBatch(stringsToTranslate, locale);
+
+  const labels = { ...PDF_LABELS_EN };
+  let index = 0;
+  for (const key of labelKeys) {
+    labels[key] = translated[index++] ?? PDF_LABELS_EN[key];
+  }
+
+  const translatedIssues = issues.map((issue, issueIndex) => {
+    const labelIndex = labelKeys.length + issueIndex;
+    const commentOffset = labelKeys.length + issues.length;
+    const commentIndex = issues
+      .slice(0, issueIndex)
+      .filter((i) => i.comment).length;
+
+    return {
+      ...issue,
+      label: translated[labelIndex] ?? issue.label,
+      comment: issue.comment
+        ? translated[commentOffset + commentIndex] ?? issue.comment
+        : "",
+    };
+  });
+
+  return { labels, issues: translatedIssues };
+}
+
+export async function generateJobPDF(
+  job: Job,
+  options: GenerateJobPDFOptions = {}
+): Promise<Uint8Array> {
+  const locale = options.locale ?? "en";
+  const bannerBytes = options.bannerBytes;
+  const { labels, issues } = await buildTranslatedContent(job, locale);
+
   const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([595, 842]); // A4
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  let page = pdfDoc.addPage([595, 842]);
+  const { font, boldFont } = await embedPdfFonts(pdfDoc, locale);
 
-  // NOTE: width/height must be mutable because we add pages later.
   let { height, width } = page.getSize();
-
   let y = height - 70;
   const marginX = 40;
-  const lineHeight = 18;
+  const dateLocale = getDateLocale(locale);
+  const tz = "Asia/Dubai";
 
-  // ---------- helpers (wrapping/auto-height + numbering UI; pdf-lib safe) ----------
+  const t = (text: string) => shapePdfText(text, locale);
+
   const maxTextWidth = (padLeft = 0, padRight = 0) =>
     width - marginX * 2 - padLeft - padRight;
 
@@ -26,7 +95,7 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
   };
 
   const ensureSpace = (need: number) => {
-    const bottomY = 40; // bottom margin
+    const bottomY = 40;
     if (y - need < bottomY) {
       page = pdfDoc.addPage([595, 842]);
       refreshPageMetrics();
@@ -34,29 +103,23 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     }
   };
 
-  const wrapText = (
-    text: string,
-    usedFont: typeof font,
-    size: number,
-    maxWidth: number
-  ) => {
-    const words = (text ?? "-").split(/\s+/);
+  const wrapText = (text: string, usedFont: PDFFont, size: number, maxWidth: number) => {
+    const words = (text ?? labels.fallback).split(/\s+/);
     const lines: string[] = [];
     let current = "";
     for (const w of words) {
-      const test = current ? current + " " + w : w;
+      const test = current ? `${current} ${w}` : w;
       const wWidth = usedFont.widthOfTextAtSize(test, size);
       if (wWidth <= maxWidth) {
         current = test;
       } else {
         if (current) lines.push(current);
-        // hard-wrap single ultra-long words/URLs
         if (usedFont.widthOfTextAtSize(w, size) > maxWidth) {
           let chunk = "";
           for (const ch of w) {
-            const t = chunk + ch;
-            if (usedFont.widthOfTextAtSize(t, size) <= maxWidth) {
-              chunk = t;
+            const candidate = chunk + ch;
+            if (usedFont.widthOfTextAtSize(candidate, size) <= maxWidth) {
+              chunk = candidate;
             } else {
               if (chunk) lines.push(chunk);
               chunk = ch;
@@ -72,47 +135,36 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     return lines;
   };
 
-  const drawCommentBox = (
-    label: string,
-    text: string,
-    options?: { pad?: number }
-  ) => {
+  const drawCommentBox = (label: string, text: string, options?: { pad?: number }) => {
     const pad = options?.pad ?? 8;
     const labelSize = 10.5;
     const textSize = 10.5;
     const lh = 14;
-
     const labelWidth = maxTextWidth(pad, pad);
-    const labelLines = wrapText(label, boldFont, labelSize, labelWidth);
-    const textLines = wrapText(text || "-", font, textSize, labelWidth);
-
+    const labelLines = wrapText(t(label), boldFont, labelSize, labelWidth);
+    const textLines = wrapText(t(text || labels.fallback), font, textSize, labelWidth);
     const contentHeight = labelLines.length * lh + 4 + textLines.length * lh;
     const boxHeight = contentHeight + pad * 2;
     ensureSpace(boxHeight + 6);
 
-    // background (use low opacity fill via color+opacity on a normal rectangle)
     page.drawRectangle({
       x: marginX,
       y: y - boxHeight,
       width: width - marginX * 2,
       height: boxHeight,
-      // borderRadius: 6,
       color: rgb(0, 0, 0),
       opacity: 0.04,
     });
 
-    // border (stroke only)
     page.drawRectangle({
       x: marginX,
       y: y - boxHeight,
       width: width - marginX * 2,
       height: boxHeight,
-      // borderRadius: 6,
       borderColor: rgb(0.82, 0.82, 0.82),
       borderWidth: 1,
     });
 
-    // label lines (bold)
     let ty = y - pad - labelSize;
     for (const ln of labelLines) {
       page.drawText(ln, {
@@ -126,8 +178,6 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     }
 
     ty -= 2;
-
-    // comment text lines
     for (const ln of textLines) {
       page.drawText(ln, {
         x: marginX + pad,
@@ -152,12 +202,11 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     const leftRuleW = 3;
     const padLeft = 10;
     const contentWidth = maxTextWidth(leftRuleW + padLeft, 0);
-    const headingText = `${index}. ${text || "-"}`;
+    const headingText = `${index}. ${t(text || labels.fallback)}`;
     const lines = wrapText(headingText, boldFont, size, contentWidth);
     const blockH = Math.max(18, lines.length * lh);
     ensureSpace(blockH + 6);
 
-    // left rule (solid bar)
     page.drawRectangle({
       x: marginX,
       y: y - blockH,
@@ -166,7 +215,6 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
       color: rgb(...accent),
     });
 
-    // text
     let ty = y - size - 2;
     for (const ln of lines) {
       page.drawText(ln, {
@@ -183,79 +231,20 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
   };
 
   const severityAccent: Record<string, [number, number, number]> = {
-    Minor: [0.95, 0.6, 0.1], // orange-ish
-    Major: [0.9, 0.2, 0.2],  // red-ish
-    OK:    [0.1, 0.55, 0.85],// blue-ish
+    minor: [0.95, 0.6, 0.1],
+    major: [0.9, 0.2, 0.2],
+    ok: [0.1, 0.55, 0.85],
   };
 
-  // ====== Banner Image Header ======
   const headerHeight = 100;
-  
-  if (bannerBytes) {
-    try {
-      const bannerImg = await pdfDoc.embedJpg(bannerBytes);
-      const bannerDims = bannerImg.scale(1);
-      
-      // Calculate dimensions to fit the header while maintaining aspect ratio
-      // Use content width (with margins) instead of full page width
-      const bannerAspect = bannerDims.width / bannerDims.height;
-      const bannerWidth = width - marginX * 2;
-      const bannerHeight = bannerWidth / bannerAspect;
-      
-      page.drawImage(bannerImg, {
-        x: marginX,
-        y: height - bannerHeight - 20,
-        width: bannerWidth,
-        height: bannerHeight,
-      });
-      
-      y = height - bannerHeight - 60;
-    } catch (e) {
-      console.warn("Banner embedding failed", e);
-      // Fallback to gradient header if banner fails
-      const gradientSteps = 20;
-      const gradientWidth = width / gradientSteps;
 
-      for (let i = 0; i < gradientSteps; i++) {
-        const progress = i / gradientSteps;
-        const color = rgb(0.35 - progress * 0.25, 0.1 + progress * 0.3, 0.6 + progress * 0.2);
-
-        page.drawRectangle({
-          x: i * gradientWidth,
-          y: height - headerHeight,
-          width: gradientWidth,
-          height: headerHeight,
-          color,
-        });
-      }
-
-      page.drawText("CAR INSPECTION REPORT", {
-        x: marginX + 120,
-        y: height - 65,
-        size: 24,
-        font: boldFont,
-        color: rgb(1, 1, 1),
-      });
-
-      page.drawText("Comprehensive Vehicle Assessment", {
-        x: marginX + 120,
-        y: height - 85,
-        size: 12,
-        font,
-        color: rgb(0.9, 0.9, 0.9),
-      });
-      
-      y = height - 140;
-    }
-  } else {
-    // Fallback to gradient header if no banner provided
+  const drawGradientHeader = () => {
     const gradientSteps = 20;
     const gradientWidth = width / gradientSteps;
 
     for (let i = 0; i < gradientSteps; i++) {
       const progress = i / gradientSteps;
       const color = rgb(0.35 - progress * 0.25, 0.1 + progress * 0.3, 0.6 + progress * 0.2);
-
       page.drawRectangle({
         x: i * gradientWidth,
         y: height - headerHeight,
@@ -265,7 +254,7 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
       });
     }
 
-    page.drawText("CAR INSPECTION REPORT", {
+    page.drawText(t(labels.title), {
       x: marginX + 120,
       y: height - 65,
       size: 24,
@@ -273,19 +262,42 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
       color: rgb(1, 1, 1),
     });
 
-    page.drawText("Comprehensive Vehicle Assessment", {
+    page.drawText(t(labels.subtitle), {
       x: marginX + 120,
       y: height - 85,
       size: 12,
       font,
       color: rgb(0.9, 0.9, 0.9),
     });
-    
+
     y = height - 140;
+  };
+
+  if (bannerBytes) {
+    try {
+      const bannerImg = await pdfDoc.embedJpg(bannerBytes);
+      const bannerDims = bannerImg.scale(1);
+      const bannerAspect = bannerDims.width / bannerDims.height;
+      const bannerWidth = width - marginX * 2;
+      const bannerHeight = bannerWidth / bannerAspect;
+
+      page.drawImage(bannerImg, {
+        x: marginX,
+        y: height - bannerHeight - 20,
+        width: bannerWidth,
+        height: bannerHeight,
+      });
+
+      y = height - bannerHeight - 60;
+    } catch (e) {
+      console.warn("Banner embedding failed", e);
+      drawGradientHeader();
+    }
+  } else {
+    drawGradientHeader();
   }
 
-  // ====== Info box (your original look; page-safety only) ======
-  ensureSpace(70 + 10);
+  ensureSpace(80);
   page.drawRectangle({
     x: marginX,
     y: y - 70,
@@ -294,25 +306,32 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     borderColor: rgb(0.7, 0.7, 0.7),
     borderWidth: 1,
     color: rgb(0.96, 0.96, 1),
-    // borderRadius: 5,
   });
 
-  const infoLeft = [`FILE #: ${job.jobCount || "-"}`,`VEHICLE: ${job.carNumber || "-"}`, `CHASSIS #: ${job.engineNumber.toUpperCase() || "-"}`];
+  const chassisValue = job.engineNumber
+    ? String(job.engineNumber).toUpperCase()
+    : labels.fallback;
+
+  const infoLeft = [
+    `${t(labels.fileNumber)}: ${job.jobCount ?? labels.fallback}`,
+    `${t(labels.vehicle)}: ${job.carNumber || labels.fallback}`,
+    `${t(labels.chassis)}: ${chassisValue}`,
+  ];
   const infoRight = [
-    `INSPECTOR: ${job.customerName || "-"}`,
-    `DATE: ${new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai' })}`,
-    `CURRENT ODO: ${job.odometer || "-"}`,
+    `${t(labels.inspector)}: ${job.customerName || labels.fallback}`,
+    `${t(labels.date)}: ${new Date().toLocaleDateString(dateLocale, { timeZone: tz })}`,
+    `${t(labels.currentOdo)}: ${job.odometer ?? labels.fallback}`,
   ];
 
   let infoY = y - 20;
   infoLeft.forEach((line) => {
-    page.drawText(line, { x: marginX + 10, y: infoY, size: 11, font });
+    page.drawText(t(line), { x: marginX + 10, y: infoY, size: 11, font });
     infoY -= 15;
   });
 
   infoY = y - 20;
   infoRight.forEach((line) => {
-    page.drawText(line, {
+    page.drawText(t(line), {
       x: width / 2 + 20,
       y: infoY,
       size: 11,
@@ -323,8 +342,7 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
 
   y -= 110;
 
-  // ====== Summary badges (unchanged) ======
-  page.drawText("Summary of Inspection", {
+  page.drawText(t(labels.summaryHeading), {
     x: marginX,
     y,
     size: 14,
@@ -334,35 +352,37 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
   y -= 30;
 
   const summary = {
-    Okay:
-      job.inspectionTabs?.flatMap((t) => t.subIssues).filter((i) => i.severity === "ok")
+    okay:
+      job.inspectionTabs?.flatMap((tab) => tab.subIssues).filter((i) => i.severity === "ok")
         .length || 0,
-    Minor:
-      job.inspectionTabs?.flatMap((t) => t.subIssues).filter((i) => i.severity === "minor")
+    minor:
+      job.inspectionTabs?.flatMap((tab) => tab.subIssues).filter((i) => i.severity === "minor")
         .length || 0,
-    Major:
-      job.inspectionTabs?.flatMap((t) => t.subIssues).filter((i) => i.severity === "major")
+    major:
+      job.inspectionTabs?.flatMap((tab) => tab.subIssues).filter((i) => i.severity === "major")
         .length || 0,
   };
 
-  const badgeColors: Record<string, [number, number, number]> = {
-    Okay: [0.1, 0.7, 0.2],
-    Minor: [0.95, 0.6, 0.1],
-    Major: [0.9, 0.2, 0.2],
-  };
+  const badgeEntries: Array<{
+    key: keyof typeof summary;
+    label: string;
+    color: [number, number, number];
+  }> = [
+    { key: "okay", label: labels.okay, color: [0.1, 0.7, 0.2] },
+    { key: "minor", label: labels.minor, color: [0.95, 0.6, 0.1] },
+    { key: "major", label: labels.major, color: [0.9, 0.2, 0.2] },
+  ];
 
   let xPos = marginX;
-  Object.entries(summary).forEach(([label, count]) => {
-    const color = rgb(...badgeColors[label]);
+  badgeEntries.forEach(({ key, label, color }) => {
     page.drawRectangle({
       x: xPos,
       y: y - 5,
       width: 90,
       height: 25,
-      color,
-      // borderRadius: 5,
+      color: rgb(...color),
     });
-    page.drawText(`${label}: ${count}`, {
+    page.drawText(t(`${label}: ${summary[key]}`), {
       x: xPos + 10,
       y: y,
       size: 11,
@@ -374,81 +394,65 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
 
   y -= 30;
 
-  // ====== Issues grouped (UI: numbering + wrapped comments) ======
-  const grouped: Record<string, typeof job.inspectionTabs[0]["subIssues"]> = {
-    Minor: [],
-    Major: [],
-    OK: [],
+  const grouped: Record<"minor" | "major" | "ok", IssueEntry[]> = {
+    minor: issues.filter((i) => i.severity === "minor"),
+    major: issues.filter((i) => i.severity === "major"),
+    ok: issues.filter((i) => i.severity === "ok"),
   };
 
-  for (const tab of job.inspectionTabs || []) {
-    for (const issue of tab.subIssues || []) {
-      if (issue.severity === "minor") grouped.Minor.push(issue);
-      if (issue.severity === "major") grouped.Major.push(issue);
-      if (issue.severity === "ok") grouped.OK.push(issue);
-    }
-  }
+  const sectionMeta: Array<{
+    key: "minor" | "major" | "ok";
+    title: string;
+    bg: [number, number, number];
+  }> = [
+    { key: "minor", title: labels.sectionMinor, bg: [1, 0.97, 0.9] },
+    { key: "major", title: labels.sectionMajor, bg: [1, 0.95, 0.95] },
+    { key: "ok", title: labels.sectionOk, bg: [0.95, 0.98, 1] },
+  ];
 
-  const sectionColors: Record<string, [number, number, number]> = {
-    Minor: [1, 0.97, 0.9],
-    Major: [1, 0.95, 0.95],
-    OK: [0.95, 0.98, 1],
-  };
+  for (const section of sectionMeta) {
+    const sectionIssues = grouped[section.key];
+    if (sectionIssues.length === 0) continue;
 
-  for (const severity of Object.keys(grouped)) {
-    if (grouped[severity].length > 0) {
-      // Section header (same visual)
-      ensureSpace(22 + 18);
-      page.drawRectangle({
-        x: marginX,
-        y: y - 20,
-        width: width - marginX * 2,
-        height: 22,
-        color: rgb(...sectionColors[severity]),
-        // borderRadius: 4,
-      });
+    ensureSpace(40);
+    page.drawRectangle({
+      x: marginX,
+      y: y - 20,
+      width: width - marginX * 2,
+      height: 22,
+      color: rgb(...section.bg),
+    });
 
-      page.drawText(severity, {
-        x: marginX + 10,
-        y: y - 5,
-        size: 12,
-        font: boldFont,
-        color: rgb(0.2, 0.2, 0.2),
-      });
+    page.drawText(t(section.title), {
+      x: marginX + 10,
+      y: y - 5,
+      size: 12,
+      font: boldFont,
+      color: rgb(0.2, 0.2, 0.2),
+    });
 
-      y -= 40;
+    y -= 40;
 
-      // Numbered sub-issues with eye-catching heading + auto-expanding comments
-      let idx = 1;
-      for (const issue of grouped[severity]) {
-        drawNumberedHeading(
-          idx,
-          issue.label ?? "-",
-          severityAccent[severity] || [0.27, 0.27, 0.27]
-        );
-
-        if (issue.comment && issue.comment.trim().length > 0) {
-          drawCommentBox("Comment:", issue.comment);
-        }
-
-        idx += 1;
+    let idx = 1;
+    for (const issue of sectionIssues) {
+      drawNumberedHeading(idx, issue.label, severityAccent[section.key]);
+      if (issue.comment) {
+        drawCommentBox(labels.comment, issue.comment);
       }
-
-      y -= 20;
+      idx += 1;
     }
+
+    y -= 20;
   }
 
-  // ====== Disclaimer Box ======
-  y -= 10; // Space before disclaimer
-  
+  y -= 10;
   const disclaimerBoxWidth = width - marginX * 2;
   const disclaimerBoxHeight = 85;
   const disclaimerHeaderHeight = 22;
   const disclaimerPadding = 10;
-  
+
   ensureSpace(disclaimerBoxHeight + 10);
-  
-  // Black header bar
+
   page.drawRectangle({
     x: marginX,
     y: y - disclaimerHeaderHeight,
@@ -456,19 +460,17 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     height: disclaimerHeaderHeight,
     color: rgb(0, 0, 0),
   });
-  
-  // Header text "Disclaimer:" in white
-  page.drawText("Disclaimer:", {
+
+  page.drawText(t(labels.disclaimer), {
     x: marginX + disclaimerPadding,
     y: y - disclaimerHeaderHeight + 6,
     size: 12,
     font: boldFont,
     color: rgb(1, 1, 1),
   });
-  
+
   y -= disclaimerHeaderHeight;
-  
-  // White content box with border
+
   page.drawRectangle({
     x: marginX,
     y: y - (disclaimerBoxHeight - disclaimerHeaderHeight),
@@ -478,13 +480,11 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     borderColor: rgb(0, 0, 0),
     borderWidth: 1,
   });
-  
-  // Disclaimer bullet points
+
   const bulletSize = 10;
   const bulletX = marginX + disclaimerPadding + 5;
   let bulletY = y - 18;
-  
-  // Bullet 1
+
   page.drawText("•", {
     x: bulletX,
     y: bulletY,
@@ -492,10 +492,14 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     font: boldFont,
     color: rgb(1, 0.4, 0),
   });
-  
-  const line1 = "I acknowledge Motor Expert has inspected my vehicle and returned it in good condition.";
-  const line1Wrapped = wrapText(line1, font, bulletSize, disclaimerBoxWidth - disclaimerPadding * 2 - 15);
-  
+
+  const line1Wrapped = wrapText(
+    t(labels.disclaimerLine1),
+    font,
+    bulletSize,
+    disclaimerBoxWidth - disclaimerPadding * 2 - 15
+  );
+
   for (const line of line1Wrapped) {
     page.drawText(line, {
       x: bulletX + 12,
@@ -506,10 +510,9 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     });
     bulletY -= 12;
   }
-  
-  bulletY -= 3; // Extra space between bullets
-  
-  // Bullet 2
+
+  bulletY -= 3;
+
   page.drawText("•", {
     x: bulletX,
     y: bulletY,
@@ -517,10 +520,14 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     font: boldFont,
     color: rgb(1, 0.4, 0),
   });
-  
-  const line2 = "I acknowledge that this inspection is valid only at the time of inspection.";
-  const line2Wrapped = wrapText(line2, font, bulletSize, disclaimerBoxWidth - disclaimerPadding * 2 - 15);
-  
+
+  const line2Wrapped = wrapText(
+    t(labels.disclaimerLine2),
+    font,
+    bulletSize,
+    disclaimerBoxWidth - disclaimerPadding * 2 - 15
+  );
+
   for (const line of line2Wrapped) {
     page.drawText(line, {
       x: bulletX + 12,
@@ -531,30 +538,30 @@ export async function generateJobPDF(job: Job, logoBytes?: Uint8Array, bannerByt
     });
     bulletY -= 12;
   }
-  
-  // Signature line
+
   const signatureY = y - (disclaimerBoxHeight - disclaimerHeaderHeight) + 12;
-  const signatureLineStart = width - marginX - 170;
-  const signatureLineEnd = width - marginX - disclaimerPadding;
-  
   page.drawLine({
-    start: { x: signatureLineStart, y: signatureY },
-    end: { x: signatureLineEnd, y: signatureY },
+    start: { x: width - marginX - 170, y: signatureY },
+    end: { x: width - marginX - disclaimerPadding, y: signatureY },
     color: rgb(0, 0, 0),
     thickness: 1,
   });
-  
-  y -= (disclaimerBoxHeight - disclaimerHeaderHeight) + 5;
 
-  // ====== Footer (below disclaimer) ======
-  y -= 10; // Space between disclaimer and footer
-  page.drawText(`Generated on ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' })}`, {
-    x: marginX,
-    y: y,
-    size: 9,
-    font,
-    color: rgb(0.5, 0.5, 0.5),
-  });
+  y -= disclaimerBoxHeight - disclaimerHeaderHeight + 5;
+  y -= 10;
 
-  return await pdfDoc.save();
+  page.drawText(
+    t(
+      `${labels.generatedOn} ${new Date().toLocaleString(dateLocale, { timeZone: tz })}`
+    ),
+    {
+      x: marginX,
+      y: y,
+      size: 9,
+      font,
+      color: rgb(0.5, 0.5, 0.5),
+    }
+  );
+
+  return pdfDoc.save();
 }

@@ -163,7 +163,8 @@ export default function PostJobPage() {
             placeholder="Car Number"
             value={form.carNumber}
             onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
           />
         </div>
         <div>
@@ -175,7 +176,8 @@ export default function PostJobPage() {
             placeholder="Inspector Name"
             value={form.customerName}
             onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
           />
         </div>
         <div>
@@ -187,7 +189,8 @@ export default function PostJobPage() {
             placeholder="Chassis Number"
             value={form.engineNumber}
             onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
           />
         </div>
         <div>
@@ -199,7 +202,8 @@ export default function PostJobPage() {
             placeholder="Odometer Reading"
             value={form.odometer || ""}
             onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
           />
         </div>
         <div>
