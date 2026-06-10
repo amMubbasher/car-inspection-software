@@ -51,3 +51,19 @@ export const PDF_LABELS_EN: PdfLabels = {
 export function getPdfLabelKeys(): (keyof PdfLabels)[] {
   return Object.keys(PDF_LABELS_EN) as (keyof PdfLabels)[];
 }
+
+/** Labels translated from the summary section onward (header/info box stays English). */
+export const PDF_TRANSLATABLE_LABEL_KEYS: (keyof PdfLabels)[] = [
+  "summaryHeading",
+  "okay",
+  "minor",
+  "major",
+  "sectionMinor",
+  "sectionMajor",
+  "sectionOk",
+  "comment",
+  "disclaimer",
+  "disclaimerLine1",
+  "disclaimerLine2",
+  "generatedOn",
+];

@@ -1,7 +1,11 @@
 import { PDFDocument, PDFFont, rgb } from "pdf-lib";
 import type { Job } from "@/types/job";
-import { PDF_LABELS_EN, getPdfLabelKeys, type PdfLabels } from "@/lib/pdfLabels";
-import { embedPdfFonts, getDateLocale, shapePdfText } from "@/lib/pdfFonts";
+import {
+  PDF_LABELS_EN,
+  PDF_TRANSLATABLE_LABEL_KEYS,
+  type PdfLabels,
+} from "@/lib/pdfLabels";
+import { embedPdfFonts, shapePdfText } from "@/lib/pdfFonts";
 import { translateBatch } from "@/lib/translate";
 
 type GenerateJobPDFOptions = {
@@ -31,9 +35,8 @@ async function buildTranslatedContent(
     }
   }
 
-  const labelKeys = getPdfLabelKeys();
   const stringsToTranslate = [
-    ...labelKeys.map((key) => PDF_LABELS_EN[key]),
+    ...PDF_TRANSLATABLE_LABEL_KEYS.map((key) => PDF_LABELS_EN[key]),
     ...issues.map((i) => i.label),
     ...issues.filter((i) => i.comment).map((i) => i.comment),
   ];
@@ -42,13 +45,13 @@ async function buildTranslatedContent(
 
   const labels = { ...PDF_LABELS_EN };
   let index = 0;
-  for (const key of labelKeys) {
+  for (const key of PDF_TRANSLATABLE_LABEL_KEYS) {
     labels[key] = translated[index++] ?? PDF_LABELS_EN[key];
   }
 
   const translatedIssues = issues.map((issue, issueIndex) => {
-    const labelIndex = labelKeys.length + issueIndex;
-    const commentOffset = labelKeys.length + issues.length;
+    const labelIndex = PDF_TRANSLATABLE_LABEL_KEYS.length + issueIndex;
+    const commentOffset = PDF_TRANSLATABLE_LABEL_KEYS.length + issues.length;
     const commentIndex = issues
       .slice(0, issueIndex)
       .filter((i) => i.comment).length;
@@ -75,15 +78,47 @@ export async function generateJobPDF(
 
   const pdfDoc = await PDFDocument.create();
   let page = pdfDoc.addPage([595, 842]);
-  const { font, boldFont } = await embedPdfFonts(pdfDoc, locale);
+  const { font, boldFont, latinFont, latinBoldFont } = await embedPdfFonts(
+    pdfDoc,
+    locale
+  );
 
   let { height, width } = page.getSize();
   let y = height - 70;
   const marginX = 40;
-  const dateLocale = getDateLocale(locale);
   const tz = "Asia/Dubai";
 
   const t = (text: string) => shapePdfText(text, locale);
+
+  const drawLatin = (
+    text: string,
+    x: number,
+    yPos: number,
+    size: number,
+    opts: { font?: PDFFont; color?: ReturnType<typeof rgb> } = {}
+  ) => {
+    page.drawText(text, {
+      x,
+      y: yPos,
+      size,
+      font: opts.font ?? latinFont,
+      color: opts.color,
+    });
+  };
+
+  const drawLabelValue = (
+    label: string,
+    value: string,
+    x: number,
+    yPos: number,
+    size: number,
+    labelFont: PDFFont = latinFont
+  ) => {
+    const prefix = `${label}: `;
+    drawLatin(prefix, x, yPos, size, { font: labelFont });
+    const prefixWidth = labelFont.widthOfTextAtSize(prefix, size);
+    drawLatin(value, x + prefixWidth, yPos, size);
+  };
 
   const maxTextWidth = (padLeft = 0, padRight = 0) =>
     width - marginX * 2 - padLeft - padRight;
@@ -202,9 +237,9 @@ export async function generateJobPDF(
     const leftRuleW = 3;
     const padLeft = 10;
     const contentWidth = maxTextWidth(leftRuleW + padLeft, 0);
-    const headingText = `${index}. ${t(text || labels.fallback)}`;
-    const lines = wrapText(headingText, boldFont, size, contentWidth);
-    const blockH = Math.max(18, lines.length * lh);
+    const prefix = `${index}. `;
+    const bodyLines = wrapText(t(text || labels.fallback), boldFont, size, contentWidth);
+    const blockH = Math.max(18, bodyLines.length * lh);
     ensureSpace(blockH + 6);
 
     page.drawRectangle({
@@ -215,17 +250,33 @@ export async function generateJobPDF(
       color: rgb(...accent),
     });
 
+    const lineX = marginX + leftRuleW + padLeft;
     let ty = y - size - 2;
-    for (const ln of lines) {
-      page.drawText(ln, {
-        x: marginX + leftRuleW + padLeft,
-        y: ty,
-        size,
-        font: boldFont,
-        color: rgb(0.13, 0.13, 0.13),
-      });
+    bodyLines.forEach((ln, lineIndex) => {
+      if (lineIndex === 0) {
+        drawLatin(prefix, lineX, ty, size, {
+          font: latinBoldFont,
+          color: rgb(0.13, 0.13, 0.13),
+        });
+        const prefixWidth = latinBoldFont.widthOfTextAtSize(prefix, size);
+        page.drawText(ln, {
+          x: lineX + prefixWidth,
+          y: ty,
+          size,
+          font: boldFont,
+          color: rgb(0.13, 0.13, 0.13),
+        });
+      } else {
+        page.drawText(ln, {
+          x: lineX,
+          y: ty,
+          size,
+          font: boldFont,
+          color: rgb(0.13, 0.13, 0.13),
+        });
+      }
       ty -= lh;
-    }
+    });
 
     y -= blockH + 6;
   };
@@ -254,19 +305,12 @@ export async function generateJobPDF(
       });
     }
 
-    page.drawText(t(labels.title), {
-      x: marginX + 120,
-      y: height - 65,
-      size: 24,
-      font: boldFont,
+    drawLatin(PDF_LABELS_EN.title, marginX + 120, height - 65, 24, {
+      font: latinBoldFont,
       color: rgb(1, 1, 1),
     });
 
-    page.drawText(t(labels.subtitle), {
-      x: marginX + 120,
-      y: height - 85,
-      size: 12,
-      font,
+    drawLatin(PDF_LABELS_EN.subtitle, marginX + 120, height - 85, 12, {
       color: rgb(0.9, 0.9, 0.9),
     });
 
@@ -308,35 +352,32 @@ export async function generateJobPDF(
     color: rgb(0.96, 0.96, 1),
   });
 
+  const fallback = PDF_LABELS_EN.fallback;
   const chassisValue = job.engineNumber
     ? String(job.engineNumber).toUpperCase()
-    : labels.fallback;
+    : fallback;
+  const reportDate = new Date().toLocaleDateString("en-GB", { timeZone: tz });
 
   const infoLeft = [
-    `${t(labels.fileNumber)}: ${job.jobCount ?? labels.fallback}`,
-    `${t(labels.vehicle)}: ${job.carNumber || labels.fallback}`,
-    `${t(labels.chassis)}: ${chassisValue}`,
+    { label: PDF_LABELS_EN.fileNumber, value: String(job.jobCount ?? fallback) },
+    { label: PDF_LABELS_EN.vehicle, value: job.carNumber || fallback },
+    { label: PDF_LABELS_EN.chassis, value: chassisValue },
   ];
   const infoRight = [
-    `${t(labels.inspector)}: ${job.customerName || labels.fallback}`,
-    `${t(labels.date)}: ${new Date().toLocaleDateString(dateLocale, { timeZone: tz })}`,
-    `${t(labels.currentOdo)}: ${job.odometer ?? labels.fallback}`,
+    { label: PDF_LABELS_EN.inspector, value: job.customerName || fallback },
+    { label: PDF_LABELS_EN.date, value: reportDate },
+    { label: PDF_LABELS_EN.currentOdo, value: String(job.odometer ?? fallback) },
   ];
 
   let infoY = y - 20;
-  infoLeft.forEach((line) => {
-    page.drawText(t(line), { x: marginX + 10, y: infoY, size: 11, font });
+  infoLeft.forEach(({ label, value }) => {
+    drawLabelValue(label, value, marginX + 10, infoY, 11);
     infoY -= 15;
   });
 
   infoY = y - 20;
-  infoRight.forEach((line) => {
-    page.drawText(t(line), {
-      x: width / 2 + 20,
-      y: infoY,
-      size: 11,
-      font,
-    });
+  infoRight.forEach(({ label, value }) => {
+    drawLabelValue(label, value, width / 2 + 20, infoY, 11);
     infoY -= 15;
   });
 
@@ -382,11 +423,18 @@ export async function generateJobPDF(
       height: 25,
       color: rgb(...color),
     });
-    page.drawText(t(`${label}: ${summary[key]}`), {
-      x: xPos + 10,
+    const badgeX = xPos + 10;
+    const labelWithColon = `${t(label)}: `;
+    page.drawText(labelWithColon, {
+      x: badgeX,
       y: y,
       size: 11,
       font: boldFont,
+      color: rgb(1, 1, 1),
+    });
+    const labelWidth = boldFont.widthOfTextAtSize(labelWithColon, 11);
+    drawLatin(String(summary[key]), badgeX + labelWidth, y, 11, {
+      font: latinBoldFont,
       color: rgb(1, 1, 1),
     });
     xPos += 110;
@@ -550,18 +598,19 @@ export async function generateJobPDF(
   y -= disclaimerBoxHeight - disclaimerHeaderHeight + 5;
   y -= 10;
 
-  page.drawText(
-    t(
-      `${labels.generatedOn} ${new Date().toLocaleString(dateLocale, { timeZone: tz })}`
-    ),
-    {
-      x: marginX,
-      y: y,
-      size: 9,
-      font,
-      color: rgb(0.5, 0.5, 0.5),
-    }
-  );
+  const generatedPrefix = `${t(labels.generatedOn)} `;
+  const generatedTimestamp = new Date().toLocaleString("en-GB", { timeZone: tz });
+  page.drawText(generatedPrefix, {
+    x: marginX,
+    y: y,
+    size: 9,
+    font,
+    color: rgb(0.5, 0.5, 0.5),
+  });
+  const prefixWidth = font.widthOfTextAtSize(generatedPrefix, 9);
+  drawLatin(generatedTimestamp, marginX + prefixWidth, y, 9, {
+    color: rgb(0.5, 0.5, 0.5),
+  });
 
   return pdfDoc.save();
 }
