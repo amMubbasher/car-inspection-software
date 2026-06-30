@@ -62,8 +62,5 @@ export const PDF_TRANSLATABLE_LABEL_KEYS: (keyof PdfLabels)[] = [
   "sectionMajor",
   "sectionOk",
   "comment",
-  "disclaimer",
-  "disclaimerLine1",
-  "disclaimerLine2",
   "generatedOn",
 ];

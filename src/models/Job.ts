@@ -6,6 +6,7 @@ const SubIssueSchema = new Schema({
   label: String,
   severity: { type: String, enum: ["minor", "major", "ok"] },
   comment: String,
+  price: { type: Number, default: 0, min: 0 },
   // images: [String], 
 });
 

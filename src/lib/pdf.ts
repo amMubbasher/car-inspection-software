@@ -17,6 +17,7 @@ type IssueEntry = {
   severity: "minor" | "major" | "ok";
   label: string;
   comment: string;
+  price: number;
 };
 
 async function buildTranslatedContent(
@@ -31,6 +32,7 @@ async function buildTranslatedContent(
         severity: issue.severity,
         label: issue.label ?? PDF_LABELS_EN.fallback,
         comment: issue.comment?.trim() ?? "",
+        price: issue.price ?? 0,
       });
     }
   }
@@ -230,7 +232,8 @@ export async function generateJobPDF(
   const drawNumberedHeading = (
     index: number,
     text: string,
-    accent: [number, number, number] = [0.27, 0.27, 0.27]
+    accent: [number, number, number] = [0.27, 0.27, 0.27],
+    price?: number
   ) => {
     const size = 11.5;
     const lh = 16;
@@ -238,7 +241,50 @@ export async function generateJobPDF(
     const padLeft = 10;
     const contentWidth = maxTextWidth(leftRuleW + padLeft, 0);
     const prefix = `${index}. `;
-    const bodyLines = wrapText(t(text || labels.fallback), boldFont, size, contentWidth);
+    const prefixWidth = latinBoldFont.widthOfTextAtSize(prefix, size);
+    const formattedPrice =
+      price && price > 0 ? price.toLocaleString("en-AE") : "";
+    const priceSuffix =
+      formattedPrice ? ` (Cost: AED ${formattedPrice})` : "";
+    const priceSuffixWidth = priceSuffix
+      ? latinBoldFont.widthOfTextAtSize(priceSuffix, size)
+      : 0;
+    const shapedText = t(text || labels.fallback);
+
+    let bodyLines: string[];
+    if (priceSuffix) {
+      const firstLineMax = Math.max(0, contentWidth - prefixWidth - priceSuffixWidth);
+      const words = shapedText.split(/\s+/).filter(Boolean);
+      let firstLine = "";
+      let consumed = 0;
+
+      for (let i = 0; i < words.length; i++) {
+        const test = firstLine ? `${firstLine} ${words[i]}` : words[i];
+        if (boldFont.widthOfTextAtSize(test, size) <= firstLineMax) {
+          firstLine = test;
+          consumed = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      if (!firstLine && words.length > 0) {
+        firstLine = words[0];
+        consumed = 1;
+      }
+
+      const remainder = words.slice(consumed).join(" ");
+      bodyLines = firstLine ? [firstLine] : [];
+      if (remainder) {
+        bodyLines.push(...wrapText(remainder, boldFont, size, contentWidth));
+      }
+      if (bodyLines.length === 0) {
+        bodyLines = [shapedText];
+      }
+    } else {
+      bodyLines = wrapText(shapedText, boldFont, size, contentWidth);
+    }
+
     const blockH = Math.max(18, bodyLines.length * lh);
     ensureSpace(blockH + 6);
 
@@ -258,7 +304,6 @@ export async function generateJobPDF(
           font: latinBoldFont,
           color: rgb(0.13, 0.13, 0.13),
         });
-        const prefixWidth = latinBoldFont.widthOfTextAtSize(prefix, size);
         page.drawText(ln, {
           x: lineX + prefixWidth,
           y: ty,
@@ -266,6 +311,13 @@ export async function generateJobPDF(
           font: boldFont,
           color: rgb(0.13, 0.13, 0.13),
         });
+        if (priceSuffix) {
+          const lineWidth = boldFont.widthOfTextAtSize(ln, size);
+          drawLatin(priceSuffix, lineX + prefixWidth + lineWidth, ty, size, {
+            font: latinBoldFont,
+            color: rgb(0.13, 0.13, 0.13),
+          });
+        }
       } else {
         page.drawText(ln, {
           x: lineX,
@@ -483,7 +535,7 @@ export async function generateJobPDF(
 
     let idx = 1;
     for (const issue of sectionIssues) {
-      drawNumberedHeading(idx, issue.label, severityAccent[section.key]);
+      drawNumberedHeading(idx, issue.label, severityAccent[section.key], issue.price);
       if (issue.comment) {
         drawCommentBox(labels.comment, issue.comment);
       }
@@ -509,11 +561,8 @@ export async function generateJobPDF(
     color: rgb(0, 0, 0),
   });
 
-  page.drawText(t(labels.disclaimer), {
-    x: marginX + disclaimerPadding,
-    y: y - disclaimerHeaderHeight + 6,
-    size: 12,
-    font: boldFont,
+  drawLatin(PDF_LABELS_EN.disclaimer, marginX + disclaimerPadding, y - disclaimerHeaderHeight + 6, 12, {
+    font: latinBoldFont,
     color: rgb(1, 1, 1),
   });
 
@@ -542,18 +591,14 @@ export async function generateJobPDF(
   });
 
   const line1Wrapped = wrapText(
-    t(labels.disclaimerLine1),
-    font,
+    PDF_LABELS_EN.disclaimerLine1,
+    latinFont,
     bulletSize,
     disclaimerBoxWidth - disclaimerPadding * 2 - 15
   );
 
   for (const line of line1Wrapped) {
-    page.drawText(line, {
-      x: bulletX + 12,
-      y: bulletY,
-      size: bulletSize,
-      font,
+    drawLatin(line, bulletX + 12, bulletY, bulletSize, {
       color: rgb(0.1, 0.1, 0.5),
     });
     bulletY -= 12;
@@ -570,18 +615,14 @@ export async function generateJobPDF(
   });
 
   const line2Wrapped = wrapText(
-    t(labels.disclaimerLine2),
-    font,
+    PDF_LABELS_EN.disclaimerLine2,
+    latinFont,
     bulletSize,
     disclaimerBoxWidth - disclaimerPadding * 2 - 15
   );
 
   for (const line of line2Wrapped) {
-    page.drawText(line, {
-      x: bulletX + 12,
-      y: bulletY,
-      size: bulletSize,
-      font,
+    drawLatin(line, bulletX + 12, bulletY, bulletSize, {
       color: rgb(0.1, 0.1, 0.5),
     });
     bulletY -= 12;

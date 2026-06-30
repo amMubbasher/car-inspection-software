@@ -5,7 +5,8 @@ import { jobSchema } from "@/lib/validations/jobSchema";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { User } from "@/models/User"; 
+import { User } from "@/models/User";
+import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 export async function POST(req: Request) {
   try {
     await connectToDB();
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     
     //@ts-ignore
     const newJob = await Job.create(jobData);
-    return NextResponse.json(newJob, { status: 201 });
+    return NextResponse.json(serializeJob(newJob), { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: "Job creation failed", details: error instanceof Error ? error.message : error },
@@ -90,7 +91,7 @@ export async function GET(req: Request) {
       .limit(limit);
 
     return NextResponse.json({
-      jobs,
+      jobs: serializeJobs(jobs),
       pagination: {
         total,
         page,

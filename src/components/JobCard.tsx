@@ -84,6 +84,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
             ...issue,
             severity: existingIssue?.severity || "ok",
             comment: existingIssue?.comment || "",
+            price: existingIssue?.price ?? 0,
           };
         }),
       };
@@ -168,6 +169,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
             ...issue,
             severity: "ok" as Severity,
             comment: "",
+            price: 0,
           })),
         };
       });
@@ -670,6 +672,42 @@ const handleEdit = () => {
                                   <option value="minor">Minor</option>
                                   <option value="major">Major</option>
                                 </select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-xs">Price</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={1}
+                                  className="notranslate"
+                                  translate="no"
+                                  value={issue.price ?? 0}
+                                  onChange={(e) =>
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      inspectionTabs: prev.inspectionTabs.map((t) =>
+                                        t.key === tab.key
+                                          ? {
+                                              ...t,
+                                              subIssues: t.subIssues.map((i) =>
+                                                i.key === issue.key
+                                                  ? {
+                                                      ...i,
+                                                      price: Math.max(
+                                                        0,
+                                                        Number(e.target.value) || 0
+                                                      ),
+                                                    }
+                                                  : i
+                                              ),
+                                            }
+                                          : t
+                                      ),
+                                    }))
+                                  }
+                                  placeholder="0"
+                                />
                               </div>
                               
                               <div className="space-y-1 md:col-span-2">

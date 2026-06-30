@@ -41,6 +41,7 @@ export default function EditJobPage() {
                 ...issue,
                 severity: existingIssue?.severity || "ok",
                 comment: existingIssue?.comment || "",
+                price: existingIssue?.price ?? 0,
                 // images: existingIssue?.images || [],
               };
             }),
@@ -154,6 +155,7 @@ export default function EditJobPage() {
             ...issue,
             severity: "ok" as Severity,
             comment: "",
+            price: 0,
           })),
         };
       });
@@ -295,6 +297,45 @@ export default function EditJobPage() {
                   <option value="major">Major</option>
                   <option value="ok">OK</option>
                 </select>
+
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={issue.price ?? 0}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            inspectionTabs: prev.inspectionTabs.map((t) =>
+                              t.key === tab.key
+                                ? {
+                                    ...t,
+                                    subIssues: t.subIssues.map((i) =>
+                                      i.key === issue.key
+                                        ? {
+                                            ...i,
+                                            price: Math.max(
+                                              0,
+                                              Number(e.target.value) || 0
+                                            ),
+                                          }
+                                        : i
+                                    ),
+                                  }
+                                : t
+                            ),
+                          }
+                        : prev
+                    )
+                  }
+                  className="notranslate mb-2 w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  translate="no"
+                />
 
                 <textarea
                   placeholder="Comment"

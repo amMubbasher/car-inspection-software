@@ -5,6 +5,7 @@ import { Job } from "@/models/Job";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
+import { serializeJob } from "@/lib/serializeJob";
 export async function GET(req, { params }) {
   try {
     await connectToDB();
@@ -12,7 +13,7 @@ export async function GET(req, { params }) {
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
-    return NextResponse.json(job);
+    return NextResponse.json(serializeJob(job));
   } catch (error) {
     return NextResponse.json({ error: "Failed to fetch job" }, { status: 500 });
   }
@@ -53,7 +54,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    return NextResponse.json(updatedJob);
+    return NextResponse.json(serializeJob(updatedJob));
   } catch (error) {
     console.error("PATCH error:", error);
     return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
