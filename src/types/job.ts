@@ -13,6 +13,7 @@ export interface SubIssue {
   label: string;
   severity: Severity;
   comment?: string;
+  price?: number;
   // images: string[];
 }
 

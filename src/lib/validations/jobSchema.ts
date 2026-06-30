@@ -5,6 +5,7 @@ export const subIssueSchema = z.object({
   label: z.string(),
   severity: z.enum(["minor", "major", "ok"]),
   comment: z.string().optional(),
+  price: z.number().min(0).optional().default(0),
   // images: z.array(z.string()).optional(),
 });
 

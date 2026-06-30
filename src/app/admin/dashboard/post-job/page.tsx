@@ -83,6 +83,7 @@ export default function PostJobPage() {
           ...issue,
           severity: "ok" as Severity,
           comment: "",
+          price: 0,
         })),
       }));
       
