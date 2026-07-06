@@ -8,23 +8,34 @@ export async function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
-  // Public routes
-  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
+  if (pathname.startsWith('/api/auth')) {
     return NextResponse.next();
   }
 
-  // No token? Redirect to login
+  if (pathname.startsWith('/login')) {
+    if (token) {
+      const dest =
+        token.role === 'admin' ? '/admin/dashboard' : '/team/dashboard';
+      return NextResponse.redirect(new URL(dest, req.url));
+    }
+    return NextResponse.next();
+  }
+
   if (!token) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Admin routes only
   if (pathname.startsWith('/admin') && token.role !== 'admin') {
+    if (token.role === 'team') {
+      return NextResponse.redirect(new URL('/team/dashboard', req.url));
+    }
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Team routes only
   if (pathname.startsWith('/team') && token.role !== 'team') {
+    if (token.role === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+    }
     return NextResponse.redirect(new URL('/login', req.url));
   }
 

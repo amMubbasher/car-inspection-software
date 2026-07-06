@@ -6,7 +6,6 @@ const SubIssueSchema = new Schema({
   label: String,
   severity: { type: String, enum: ["minor", "major", "ok"] },
   comment: String,
-  price: { type: Number, default: 0, min: 0 },
   // images: [String], 
 });
 
@@ -35,8 +34,13 @@ const JobSchema = new Schema(
     },
     inspectionTabs: [InspectionTabSchema],
     rejectionNote: String,
+    price: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );
 
-export const Job = models.Job || mongoose.model("Job", JobSchema);
+if (models.Job) {
+  delete models.Job;
+}
+
+export const Job = mongoose.model("Job", JobSchema);

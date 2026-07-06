@@ -13,7 +13,6 @@ export interface SubIssue {
   label: string;
   severity: Severity;
   comment?: string;
-  price?: number;
   // images: string[];
 }
 
@@ -37,6 +36,7 @@ export interface Job {
     email: string;
   } | null;
   rejectionNote?: string;
+  price?: number;
   inspectionTabs: InspectionTab[];
   createdAt?: string;
   updatedAt?: string;

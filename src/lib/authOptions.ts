@@ -1,7 +1,7 @@
 import CredentialsProvider from "next-auth/providers/credentials";
 import { User } from "@/models/User";
 import { connectToDB } from "@/lib/db";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 export const authOptions = {
   providers: [
@@ -13,18 +13,33 @@ export const authOptions = {
       },
       // @ts-expect-error - we're returning a custom user object
       async authorize(credentials) {
-        await connectToDB();
-        const user = await User.findOne({ email: credentials.email });
-        if (!user) throw new Error("No user found");
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            return null;
+          }
 
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) throw new Error("Invalid password");
+          await connectToDB();
+          const email = credentials.email.trim().toLowerCase();
+          const user = await User.findOne({ email });
+          if (!user) return null;
 
-        return {
-          _id: user._id.toString(), //  send _id explicitly
-          email: user.email,
-          role: user.role,
-        };
+          const isValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+          if (!isValid) return null;
+
+          return {
+            _id: user._id.toString(),
+            email: user.email,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error("Authentication error:", error);
+          throw new Error(
+            error instanceof Error ? error.message : "Authentication failed"
+          );
+        }
       },
     }),
   ],

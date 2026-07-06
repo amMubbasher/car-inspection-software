@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -27,17 +27,36 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-    });
 
-    if (res?.ok) {
-      router.push("/admin/dashboard");
-    } else {
-      setError("Invalid email or password");
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (res?.ok) {
+        const session = await getSession();
+        const destination =
+          session?.user?.role === "admin"
+            ? "/admin/dashboard"
+            : "/team/dashboard";
+        router.push(destination);
+        return;
+      }
+
+      setError(
+        res?.error === "CredentialsSignin"
+          ? "Invalid email or password"
+          : res?.error || "Login failed. Please try again."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Login failed. Please try again."
+      );
+    } finally {
       setIsLoading(false);
     }
   };

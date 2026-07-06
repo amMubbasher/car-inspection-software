@@ -27,10 +27,10 @@ export async function POST(req: Request) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
     
-    // Add the jobCount to the job data
     const jobData = {
       ...parsed.data,
-    jobCount: counter.value,
+      jobCount: counter.value,
+      price: Math.max(0, Number(parsed.data.price) || 0),
     };
     
     //@ts-ignore

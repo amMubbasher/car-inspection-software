@@ -7,6 +7,7 @@ export type PdfLabels = {
   inspector: string;
   date: string;
   currentOdo: string;
+  cost: string;
   summaryHeading: string;
   okay: string;
   minor: string;
@@ -31,6 +32,7 @@ export const PDF_LABELS_EN: PdfLabels = {
   inspector: "INSPECTOR",
   date: "DATE",
   currentOdo: "CURRENT ODO",
+  cost: "COST",
   summaryHeading: "Summary of Inspection",
   okay: "Okay",
   minor: "Minor",

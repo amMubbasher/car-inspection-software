@@ -15,10 +15,15 @@ export default function TeamDashboard() {
       setLoading(true);
       const res = await fetch("/api/jobs");
       const data = await res.json();
-      console.log("Team dashboard jobs response:", data);
+
+      if (!res.ok) {
+        throw new Error(data.details || data.error || "Failed to fetch jobs");
+      }
 
       if (Array.isArray(data)) {
         setJobs(data);
+      } else if (Array.isArray(data.jobs)) {
+        setJobs(data.jobs);
       } else {
         setJobs([]);
       }

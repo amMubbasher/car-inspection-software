@@ -29,6 +29,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
     odometer: job.odometer || 0,
+    price: job.price ?? 0,
     inspectionTabs: []
   });
 
@@ -84,7 +85,6 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
             ...issue,
             severity: existingIssue?.severity || "ok",
             comment: existingIssue?.comment || "",
-            price: existingIssue?.price ?? 0,
           };
         }),
       };
@@ -97,6 +97,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
       odometer: job.odometer || 0,
+      price: job.price ?? 0,
       inspectionTabs: mergedTabs
     });
     
@@ -125,6 +126,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
           odometer: formData.odometer,
+          price: formData.price ?? 0,
           inspectionTabs: formData.inspectionTabs
         })
       });
@@ -169,7 +171,6 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
             ...issue,
             severity: "ok" as Severity,
             comment: "",
-            price: 0,
           })),
         };
       });
@@ -437,16 +438,30 @@ const handleEdit = () => {
             transition={{ delay: 0.25 }}
           >
 
-           {job.status !== "pending" && <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-              onClick={() => window.open(`/api/pdf/${job._id}`, "_blank")}
-              className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-            >
-              <Download className="w-4 h-4" />
-              Download PDF
-            </motion.button>}
+           {job.status !== "pending" && (
+            <>
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={() => window.open(`/api/pdf/${job._id}`, "_blank")}
+                className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Download PDF
+              </motion.button>
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={() => window.open(`/api/pdf/${job._id}?receipt=1`, "_blank")}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-700 to-indigo-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              >
+                <Download className="w-4 h-4" />
+                Download Receipt
+              </motion.button>
+            </>
+           )}
 
             {/* {isAdmin && job.status === "completed" && (
               <>
@@ -584,6 +599,25 @@ const handleEdit = () => {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="price">Price</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min={0}
+                      step={1}
+                      className="notranslate"
+                      translate="no"
+                      value={formData.price ?? 0}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          price: Math.max(0, Number(e.target.value) || 0),
+                        })
+                      }
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="inspectionType">Inspection Type *</Label>
                     <select
                       id="inspectionType"
@@ -672,42 +706,6 @@ const handleEdit = () => {
                                   <option value="minor">Minor</option>
                                   <option value="major">Major</option>
                                 </select>
-                              </div>
-
-                              <div className="space-y-1">
-                                <Label className="text-xs">Price</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  step={1}
-                                  className="notranslate"
-                                  translate="no"
-                                  value={issue.price ?? 0}
-                                  onChange={(e) =>
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      inspectionTabs: prev.inspectionTabs.map((t) =>
-                                        t.key === tab.key
-                                          ? {
-                                              ...t,
-                                              subIssues: t.subIssues.map((i) =>
-                                                i.key === issue.key
-                                                  ? {
-                                                      ...i,
-                                                      price: Math.max(
-                                                        0,
-                                                        Number(e.target.value) || 0
-                                                      ),
-                                                    }
-                                                  : i
-                                              ),
-                                            }
-                                          : t
-                                      ),
-                                    }))
-                                  }
-                                  placeholder="0"
-                                />
                               </div>
                               
                               <div className="space-y-1 md:col-span-2">
