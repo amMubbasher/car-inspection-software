@@ -70,7 +70,7 @@ export default function Navbar() {
   const navLinks = [
     { href: dashboardHref, label: dashboardLabel, icon: UserCog, roles: ['admin', 'team'] },
     // { href: '/team/dashboard', label: 'Team Dashboard', icon: Wrench, roles: ['admin', 'team'] },
-    { href: '/admin/dashboard/post-job', label: 'Post Job', icon: Car, roles: ['admin'] },
+    { href: '/admin/dashboard/post-job', label: 'Post Job', icon: Car, roles: ['admin', 'team'] },
     { href: '/admin/dashboard/add-user', label: 'Add User', icon: Home, roles: ['admin'] },
   ];
 

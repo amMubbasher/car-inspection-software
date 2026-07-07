@@ -26,10 +26,14 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith('/admin') && token.role !== 'admin') {
-    const isTeamEditJob =
+    const teamAllowedAdminPaths = [
+      /^\/admin\/dashboard\/edit-job\/[^/]+$/,
+      /^\/admin\/dashboard\/post-job$/,
+    ];
+    const isTeamAllowedAdminPath =
       token.role === 'team' &&
-      /^\/admin\/dashboard\/edit-job\/[^/]+$/.test(pathname);
-    if (!isTeamEditJob) {
+      teamAllowedAdminPaths.some((pattern) => pattern.test(pathname));
+    if (!isTeamAllowedAdminPath) {
       if (token.role === 'team') {
         return NextResponse.redirect(new URL('/team/dashboard', req.url));
       }
