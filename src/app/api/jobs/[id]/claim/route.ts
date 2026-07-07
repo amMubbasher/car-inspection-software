@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 // @ts-ignore
 export async function PATCH(req, { params }) {
   try {
+    const { id } = await params;
     const session = await getServerSession({ req, ...authOptions });
 
     if (!session) {
@@ -20,8 +21,7 @@ export async function PATCH(req, { params }) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-// @ts-ignore
-    const job = await Job.findById(params.id);
+    const job = await Job.findById(id);
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }

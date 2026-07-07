@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 // import { FiUpload } from "react-icons/fi";
 import { inspectionTabs } from "@/config/inspectionTabs";
@@ -10,6 +11,7 @@ import type { Job, Severity, InspectionType } from "@/types/job";
 
 export default function PostJobPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const prevInspectionTypeRef = useRef<InspectionType | undefined>(undefined);
@@ -137,7 +139,9 @@ export default function PostJobPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        router.push("/admin/dashboard");
+        router.push(
+          session?.user?.role === "team" ? "/team/dashboard" : "/admin/dashboard"
+        );
       } else {
         alert("Failed to submit job. Please try again.");
         setIsSubmitting(false);

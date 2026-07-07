@@ -8,8 +8,9 @@ import { authOptions } from "@/lib/authOptions";
 import { serializeJob } from "@/lib/serializeJob";
 export async function GET(req, { params }) {
   try {
+    const { id } = await params;
     await connectToDB();
-    const job = await Job.findById(params.id).populate("assignedTo", "email");
+    const job = await Job.findById(id).populate("assignedTo", "email");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
@@ -21,6 +22,7 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try {
+    const { id: jobId } = await params;
     const session = await getServerSession(authOptions);
     if (!session || !["admin", "team"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,7 +30,6 @@ export async function PATCH(req, { params }) {
 
     await connectToDB();
     const body = await req.json();
-    const jobId = params.id;
 
     let updatePayload = {};
 
@@ -66,13 +67,13 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
+    const { id: jobId } = await params;
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await connectToDB();
-    const jobId = params.id;
 
     const deletedJob = await Job.findByIdAndDelete(jobId);
     if (!deletedJob) {

@@ -8,6 +8,11 @@ import { authOptions } from "@/lib/authOptions";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !["admin", "team"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectToDB();
     const body = await req.json();
     const parsed = jobSchema.safeParse(body);

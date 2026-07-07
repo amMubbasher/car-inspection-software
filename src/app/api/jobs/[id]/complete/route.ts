@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 
 export async function PATCH(req, { params }) {
   try {
+    const { id } = await params;
     const session = await getServerSession({ req, ...authOptions });
 
     if (!session) {
@@ -18,8 +19,7 @@ export async function PATCH(req, { params }) {
 
     await connectToDB();
     console.log(" DB connected for complete");
-    // @ts-ignore
-    const job = await Job.findById(params.id);
+    const job = await Job.findById(id);
 
     if (!job) {
       console.error(" Job not found");
