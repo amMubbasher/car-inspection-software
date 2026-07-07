@@ -5,10 +5,12 @@ import mongoose, {
   models,
   Document,
   Model,
+  Types,
 } from "mongoose";
 
 // 1. Define the TypeScript interface
 export interface IUser extends Document {
+  _id: Types.ObjectId;
   name?: string;
   email: string;
   password: string;

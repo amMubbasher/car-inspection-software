@@ -15,14 +15,14 @@ export async function GET(req, { params }) {
     }
     return NextResponse.json(serializeJob(job));
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch job" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
 export async function PATCH(req, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
+    if (!session || !["admin", "team"].includes(session.user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -46,6 +46,9 @@ export async function PATCH(req, { params }) {
     if (body.engineNumber !== undefined) updatePayload.engineNumber = body.engineNumber;
     if (body.odometer !== undefined) updatePayload.odometer = body.odometer;
     if (body.inspectionType !== undefined) updatePayload.inspectionType = body.inspectionType;
+    if (body.price !== undefined) {
+      updatePayload.price = Math.max(0, Number(body.price) || 0);
+    }
     if (body.inspectionTabs) updatePayload.inspectionTabs = body.inspectionTabs;
     console.log(updatePayload);
     const updatedJob = await Job.findByIdAndUpdate(jobId, updatePayload, { new: true });
@@ -57,7 +60,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(serializeJob(updatedJob));
   } catch (error) {
     console.error("PATCH error:", error);
-    return NextResponse.json({ error: "Failed to update job" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -79,6 +82,6 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ message: "Job deleted successfully" });
   } catch (error) {
     console.error("DELETE error:", error);
-    return NextResponse.json({ error: "Failed to delete job" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

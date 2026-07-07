@@ -6,18 +6,25 @@ import {
   type PdfLabels,
 } from "@/lib/pdfLabels";
 import { embedPdfFonts, shapePdfText } from "@/lib/pdfFonts";
+import { fitImageDimensions } from "@/lib/carDiagram";
 import { translateBatch } from "@/lib/translate";
 
 type GenerateJobPDFOptions = {
   locale?: string;
   bannerBytes?: Uint8Array;
+  carDiagramBytes?: Uint8Array;
+  includePrice?: boolean;
 };
+
+async function embedRasterImage(pdfDoc: PDFDocument, bytes: Uint8Array) {
+  const isPng = bytes[0] === 0x89 && bytes[1] === 0x50;
+  return isPng ? pdfDoc.embedPng(bytes) : pdfDoc.embedJpg(bytes);
+}
 
 type IssueEntry = {
   severity: "minor" | "major" | "ok";
   label: string;
   comment: string;
-  price: number;
 };
 
 async function buildTranslatedContent(
@@ -32,7 +39,6 @@ async function buildTranslatedContent(
         severity: issue.severity,
         label: issue.label ?? PDF_LABELS_EN.fallback,
         comment: issue.comment?.trim() ?? "",
-        price: issue.price ?? 0,
       });
     }
   }
@@ -76,6 +82,10 @@ export async function generateJobPDF(
 ): Promise<Uint8Array> {
   const locale = options.locale ?? "en";
   const bannerBytes = options.bannerBytes;
+  const carDiagramBytes = options.carDiagramBytes;
+  const includePrice = options.includePrice ?? false;
+  const jobPrice = Math.max(0, Number(job.price) || 0);
+  const showCost = includePrice && jobPrice > 0;
   const { labels, issues } = await buildTranslatedContent(job, locale);
 
   const pdfDoc = await PDFDocument.create();
@@ -232,8 +242,7 @@ export async function generateJobPDF(
   const drawNumberedHeading = (
     index: number,
     text: string,
-    accent: [number, number, number] = [0.27, 0.27, 0.27],
-    price?: number
+    accent: [number, number, number] = [0.27, 0.27, 0.27]
   ) => {
     const size = 11.5;
     const lh = 16;
@@ -241,50 +250,7 @@ export async function generateJobPDF(
     const padLeft = 10;
     const contentWidth = maxTextWidth(leftRuleW + padLeft, 0);
     const prefix = `${index}. `;
-    const prefixWidth = latinBoldFont.widthOfTextAtSize(prefix, size);
-    const formattedPrice =
-      price && price > 0 ? price.toLocaleString("en-AE") : "";
-    const priceSuffix =
-      formattedPrice ? ` (Cost: AED ${formattedPrice})` : "";
-    const priceSuffixWidth = priceSuffix
-      ? latinBoldFont.widthOfTextAtSize(priceSuffix, size)
-      : 0;
-    const shapedText = t(text || labels.fallback);
-
-    let bodyLines: string[];
-    if (priceSuffix) {
-      const firstLineMax = Math.max(0, contentWidth - prefixWidth - priceSuffixWidth);
-      const words = shapedText.split(/\s+/).filter(Boolean);
-      let firstLine = "";
-      let consumed = 0;
-
-      for (let i = 0; i < words.length; i++) {
-        const test = firstLine ? `${firstLine} ${words[i]}` : words[i];
-        if (boldFont.widthOfTextAtSize(test, size) <= firstLineMax) {
-          firstLine = test;
-          consumed = i + 1;
-        } else {
-          break;
-        }
-      }
-
-      if (!firstLine && words.length > 0) {
-        firstLine = words[0];
-        consumed = 1;
-      }
-
-      const remainder = words.slice(consumed).join(" ");
-      bodyLines = firstLine ? [firstLine] : [];
-      if (remainder) {
-        bodyLines.push(...wrapText(remainder, boldFont, size, contentWidth));
-      }
-      if (bodyLines.length === 0) {
-        bodyLines = [shapedText];
-      }
-    } else {
-      bodyLines = wrapText(shapedText, boldFont, size, contentWidth);
-    }
-
+    const bodyLines = wrapText(t(text || labels.fallback), boldFont, size, contentWidth);
     const blockH = Math.max(18, bodyLines.length * lh);
     ensureSpace(blockH + 6);
 
@@ -304,6 +270,7 @@ export async function generateJobPDF(
           font: latinBoldFont,
           color: rgb(0.13, 0.13, 0.13),
         });
+        const prefixWidth = latinBoldFont.widthOfTextAtSize(prefix, size);
         page.drawText(ln, {
           x: lineX + prefixWidth,
           y: ty,
@@ -311,13 +278,6 @@ export async function generateJobPDF(
           font: boldFont,
           color: rgb(0.13, 0.13, 0.13),
         });
-        if (priceSuffix) {
-          const lineWidth = boldFont.widthOfTextAtSize(ln, size);
-          drawLatin(priceSuffix, lineX + prefixWidth + lineWidth, ty, size, {
-            font: latinBoldFont,
-            color: rgb(0.13, 0.13, 0.13),
-          });
-        }
       } else {
         page.drawText(ln, {
           x: lineX,
@@ -394,15 +354,6 @@ export async function generateJobPDF(
   }
 
   ensureSpace(80);
-  page.drawRectangle({
-    x: marginX,
-    y: y - 70,
-    width: width - marginX * 2,
-    height: 70,
-    borderColor: rgb(0.7, 0.7, 0.7),
-    borderWidth: 1,
-    color: rgb(0.96, 0.96, 1),
-  });
 
   const fallback = PDF_LABELS_EN.fallback;
   const chassisValue = job.engineNumber
@@ -410,30 +361,118 @@ export async function generateJobPDF(
     : fallback;
   const reportDate = new Date().toLocaleDateString("en-GB", { timeZone: tz });
 
-  const infoLeft = [
+  const metaFields = [
     { label: PDF_LABELS_EN.fileNumber, value: String(job.jobCount ?? fallback) },
     { label: PDF_LABELS_EN.vehicle, value: job.carNumber || fallback },
     { label: PDF_LABELS_EN.chassis, value: chassisValue },
-  ];
-  const infoRight = [
     { label: PDF_LABELS_EN.inspector, value: job.customerName || fallback },
     { label: PDF_LABELS_EN.date, value: reportDate },
     { label: PDF_LABELS_EN.currentOdo, value: String(job.odometer ?? fallback) },
   ];
 
-  let infoY = y - 20;
-  infoLeft.forEach(({ label, value }) => {
-    drawLabelValue(label, value, marginX + 10, infoY, 11);
-    infoY -= 15;
-  });
+  const cardBorder = rgb(0.7, 0.7, 0.7);
+  const cardFill = rgb(0.96, 0.96, 1);
+  const infoPad = 10;
+  const rowHeight = 15;
+  const labelSize = 11;
+  const contentWidth = width - marginX * 2;
+  const columnGap = 12;
+  const costBoxHeight = 28;
+  const minDiagramRowHeight = 190;
+  const metaRowCount = metaFields.length;
+  let infoBoxHeight = infoPad * 2 + metaRowCount * rowHeight + 8;
 
-  infoY = y - 20;
-  infoRight.forEach(({ label, value }) => {
-    drawLabelValue(label, value, width / 2 + 20, infoY, 11);
-    infoY -= 15;
-  });
+  let diagramImg: Awaited<ReturnType<typeof embedRasterImage>> | null = null;
+  let diagramDraw:
+    | { x: number; y: number; width: number; height: number }
+    | null = null;
 
-  y -= 110;
+  if (carDiagramBytes) {
+    infoBoxHeight = Math.max(infoBoxHeight, minDiagramRowHeight);
+
+    try {
+      diagramImg = await embedRasterImage(pdfDoc, carDiagramBytes);
+      const diagramDims = diagramImg.scale(1);
+      const maxDiagramH = infoBoxHeight;
+      const maxDiagramW = contentWidth * 0.55;
+      const refitted = fitImageDimensions(
+        diagramDims.width,
+        diagramDims.height,
+        maxDiagramW,
+        maxDiagramH
+      );
+      infoBoxHeight = Math.max(infoBoxHeight, refitted.height);
+
+      diagramDraw = {
+        x: marginX + contentWidth - refitted.width,
+        y: y - (infoBoxHeight + refitted.height) / 2,
+        width: refitted.width,
+        height: refitted.height,
+      };
+    } catch (e) {
+      console.warn("Car diagram embedding failed", e);
+      diagramImg = null;
+    }
+  }
+
+  const drawMetadataCard = (
+    boxX: number,
+    boxWidth: number,
+    boxHeight: number
+  ) => {
+    page.drawRectangle({
+      x: boxX,
+      y: y - boxHeight,
+      width: boxWidth,
+      height: boxHeight,
+      borderColor: cardBorder,
+      borderWidth: 1,
+      color: cardFill,
+    });
+
+    let metaY = y - infoPad - labelSize;
+    metaFields.forEach(({ label, value }) => {
+      drawLabelValue(label, value, boxX + infoPad, metaY, labelSize);
+      metaY -= rowHeight;
+    });
+  };
+
+  ensureSpace(infoBoxHeight + 16);
+
+  if (carDiagramBytes && diagramImg && diagramDraw) {
+    const metaCardWidth =
+      diagramDraw.x - columnGap - marginX;
+    drawMetadataCard(marginX, metaCardWidth, infoBoxHeight);
+    page.drawImage(diagramImg, diagramDraw);
+  } else {
+    drawMetadataCard(marginX, contentWidth, infoBoxHeight);
+  }
+
+  y -= infoBoxHeight + 10;
+
+  if (showCost) {
+    ensureSpace(costBoxHeight + 10);
+    page.drawRectangle({
+      x: marginX,
+      y: y - costBoxHeight,
+      width: contentWidth,
+      height: costBoxHeight,
+      borderColor: rgb(0.55, 0.55, 0.75),
+      borderWidth: 1,
+      color: rgb(0.92, 0.94, 1),
+    });
+    drawLabelValue(
+      PDF_LABELS_EN.cost,
+      `AED ${jobPrice.toLocaleString("en-AE")}`,
+      marginX + infoPad,
+      y - 18,
+      12,
+      latinBoldFont
+    );
+    y -= costBoxHeight + 10;
+  }
+
+  y -= 6;
 
   page.drawText(t(labels.summaryHeading), {
     x: marginX,
@@ -535,7 +574,7 @@ export async function generateJobPDF(
 
     let idx = 1;
     for (const issue of sectionIssues) {
-      drawNumberedHeading(idx, issue.label, severityAccent[section.key], issue.price);
+      drawNumberedHeading(idx, issue.label, severityAccent[section.key]);
       if (issue.comment) {
         drawCommentBox(labels.comment, issue.comment);
       }

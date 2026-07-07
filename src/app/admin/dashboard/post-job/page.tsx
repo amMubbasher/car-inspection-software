@@ -20,6 +20,7 @@ export default function PostJobPage() {
     engineNumber: "",
     odometer: undefined,
     status: "pending",
+    price: 0,
     inspectionTabs: [],
   });
 
@@ -83,7 +84,6 @@ export default function PostJobPage() {
           ...issue,
           severity: "ok" as Severity,
           comment: "",
-          price: 0,
         })),
       }));
       
@@ -127,6 +127,7 @@ export default function PostJobPage() {
         engineNumber: form.engineNumber,
         odometer: form.odometer,
         inspectionType: form.inspectionType,
+        price: form.price ?? 0,
         inspectionTabs: form.inspectionTabs,
         status: "pending",
       };
@@ -203,6 +204,26 @@ export default function PostJobPage() {
             placeholder="Odometer Reading"
             value={form.odometer || ""}
             onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Price
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            placeholder="0"
+            value={form.price ?? 0}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                price: Math.max(0, Number(e.target.value) || 0),
+              })
+            }
             className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             translate="no"
           />

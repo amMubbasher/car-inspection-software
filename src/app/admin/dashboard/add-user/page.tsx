@@ -43,7 +43,11 @@ export default function AddUserPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to create user");
+      if (!res.ok) {
+        throw new Error(
+          data.details || data.message || "Failed to create user"
+        );
+      }
 
       setSuccess("User created successfully");
       setForm({ name: "", email: "", password: "", role: "team" });

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 // import { FiUpload } from "react-icons/fi";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
 import type { Job, Severity, InspectionType } from "@/types/job";
@@ -9,6 +10,7 @@ import type { Job, Severity, InspectionType } from "@/types/job";
 export default function EditJobPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const [form, setForm] = useState<Job | null>(null);
   const [activeTab, setActiveTab] = useState("");
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,6 @@ export default function EditJobPage() {
                 ...issue,
                 severity: existingIssue?.severity || "ok",
                 comment: existingIssue?.comment || "",
-                price: existingIssue?.price ?? 0,
                 // images: existingIssue?.images || [],
               };
             }),
@@ -50,6 +51,7 @@ export default function EditJobPage() {
 
         setForm({
           ...job,
+          price: job.price ?? 0,
           inspectionTabs: mergedTabs,
         });
         
@@ -124,6 +126,7 @@ export default function EditJobPage() {
       engineNumber: form.engineNumber,
       odometer: form.odometer,
       inspectionType: form.inspectionType,
+      price: form.price ?? 0,
       inspectionTabs: form.inspectionTabs,
     };
     const res = await fetch(`/api/jobs/${id}`, {
@@ -133,7 +136,9 @@ export default function EditJobPage() {
     });
     if (res.ok) {
       alert("Job updated successfully");
-      router.push("/admin/dashboard");
+      router.push(
+        session?.user?.role === "team" ? "/team/dashboard" : "/admin/dashboard"
+      );
     } else {
       alert("Error updating job");
     }
@@ -155,7 +160,6 @@ export default function EditJobPage() {
             ...issue,
             severity: "ok" as Severity,
             comment: "",
-            price: 0,
           })),
         };
       });
@@ -213,6 +217,24 @@ export default function EditJobPage() {
           placeholder="Odometer Reading"
           value={form.odometer || ""}
           onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          translate="no"
+        />
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Price
+        </label>
+        <input
+          type="number"
+          min={0}
+          step={1}
+          placeholder="0"
+          value={form.price ?? 0}
+          onChange={(e) =>
+            setForm({
+              ...form,
+              price: Math.max(0, Number(e.target.value) || 0),
+            })
+          }
           className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           translate="no"
         />
@@ -297,45 +319,6 @@ export default function EditJobPage() {
                   <option value="major">Major</option>
                   <option value="ok">OK</option>
                 </select>
-
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Price
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={issue.price ?? 0}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            inspectionTabs: prev.inspectionTabs.map((t) =>
-                              t.key === tab.key
-                                ? {
-                                    ...t,
-                                    subIssues: t.subIssues.map((i) =>
-                                      i.key === issue.key
-                                        ? {
-                                            ...i,
-                                            price: Math.max(
-                                              0,
-                                              Number(e.target.value) || 0
-                                            ),
-                                          }
-                                        : i
-                                    ),
-                                  }
-                                : t
-                            ),
-                          }
-                        : prev
-                    )
-                  }
-                  className="notranslate mb-2 w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  translate="no"
-                />
 
                 <textarea
                   placeholder="Comment"

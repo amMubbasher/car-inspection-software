@@ -5,7 +5,6 @@ export const subIssueSchema = z.object({
   label: z.string(),
   severity: z.enum(["minor", "major", "ok"]),
   comment: z.string().optional(),
-  price: z.number().min(0).optional().default(0),
   // images: z.array(z.string()).optional(),
 });
 
@@ -22,5 +21,6 @@ export const jobSchema = z.object({
   odometer: z.number().optional(),
   inspectionType: z.enum(["Chassis inspection", "Paint inspection", "Paint and chassis inspection", "OBD inspection", "360 inspection", "Auction Comprehensive Inspection"]).optional(),
   inspectionTabs: z.array(inspectionTabSchema),
+  price: z.coerce.number().min(0).optional().default(0),
   status: z.enum(["pending", "in_progress", "completed", "rejected"]).optional(),
 });
