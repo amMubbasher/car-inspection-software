@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 // import { FiUpload } from "react-icons/fi";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
 import type { Job, Severity, InspectionType } from "@/types/job";
@@ -9,6 +10,7 @@ import type { Job, Severity, InspectionType } from "@/types/job";
 export default function EditJobPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const [form, setForm] = useState<Job | null>(null);
   const [activeTab, setActiveTab] = useState("");
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,9 @@ export default function EditJobPage() {
     });
     if (res.ok) {
       alert("Job updated successfully");
-      router.push("/admin/dashboard");
+      router.push(
+        session?.user?.role === "team" ? "/team/dashboard" : "/admin/dashboard"
+      );
     } else {
       alert("Error updating job");
     }

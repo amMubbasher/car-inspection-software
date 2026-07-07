@@ -7,7 +7,6 @@ import { processCarDiagramPng } from "@/lib/carDiagram";
 import type { Job as JobType } from "@/types/job";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import type { Model } from "mongoose";
 
 export async function GET(
   req: Request,
@@ -16,7 +15,7 @@ export async function GET(
   try {
     const { id } = await params;
     await connectToDB();
-    const job = await (Job as Model<JobType>).findById(id).lean();
+    const job = await Job.findById(id).lean();
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -42,7 +41,7 @@ export async function GET(
 
     const locale = getLocaleFromRequest(req);
     const receipt = new URL(req.url).searchParams.get("receipt") === "1";
-    const pdfBytes = await generateJobPDF(job as JobType, {
+    const pdfBytes = await generateJobPDF(job as unknown as JobType, {
       locale,
       bannerBytes,
       carDiagramBytes,

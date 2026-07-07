@@ -64,8 +64,11 @@ export default function Navbar() {
 
   if (status === 'loading') return null;
 
+  const dashboardHref = role === 'team' ? '/team/dashboard' : '/admin/dashboard';
+  const dashboardLabel = role === 'team' ? 'Dashboard' : 'Admin Dashboard';
+
   const navLinks = [
-    { href: '/admin/dashboard', label: 'Admin Dashboard', icon: UserCog, roles: ['admin', 'team'] },
+    { href: dashboardHref, label: dashboardLabel, icon: UserCog, roles: ['admin', 'team'] },
     // { href: '/team/dashboard', label: 'Team Dashboard', icon: Wrench, roles: ['admin', 'team'] },
     { href: '/admin/dashboard/post-job', label: 'Post Job', icon: Car, roles: ['admin'] },
     { href: '/admin/dashboard/add-user', label: 'Add User', icon: Home, roles: ['admin'] },

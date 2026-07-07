@@ -26,10 +26,15 @@ export async function middleware(req: NextRequest) {
   }
 
   if (pathname.startsWith('/admin') && token.role !== 'admin') {
-    if (token.role === 'team') {
-      return NextResponse.redirect(new URL('/team/dashboard', req.url));
+    const isTeamEditJob =
+      token.role === 'team' &&
+      /^\/admin\/dashboard\/edit-job\/[^/]+$/.test(pathname);
+    if (!isTeamEditJob) {
+      if (token.role === 'team') {
+        return NextResponse.redirect(new URL('/team/dashboard', req.url));
+      }
+      return NextResponse.redirect(new URL('/login', req.url));
     }
-    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   if (pathname.startsWith('/team') && token.role !== 'team') {

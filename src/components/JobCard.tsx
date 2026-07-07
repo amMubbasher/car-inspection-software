@@ -487,31 +487,31 @@ const handleEdit = () => {
                 </motion.button>
               </>
             )} */}
+            {(isAdmin || isTeam) && (
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={handleEdit}
+                className="px-4 py-2 bg-gradient-to-r from-green-700 to-green-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              >
+                <Check className="w-4 h-4" />
+                Edit
+              </motion.button>
+            )}
             {isAdmin && (
-  <>
-    <motion.button
-      variants={buttonVariants}
-      whileHover="hover"
-      whileTap="tap"
-      onClick={handleEdit}
-      className="px-4 py-2 bg-gradient-to-r from-green-700 to-green-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-    >
-      <Check className="w-4 h-4" />
-      Edit
-    </motion.button>
-    <motion.button
-      variants={buttonVariants}
-      whileHover="hover"
-      whileTap="tap"
-      onClick={handleDelete}
-      className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-    >
-      <X className="w-4 h-4" />
-      Delete
-    </motion.button>
-  </>
-)}
-            {isAdmin && job.status === "pending" && (
+              <motion.button
+                variants={buttonVariants}
+                whileHover="hover"
+                whileTap="tap"
+                onClick={handleDelete}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              >
+                <X className="w-4 h-4" />
+                Delete
+              </motion.button>
+            )}
+            {(isAdmin || isTeam) && job.status === "pending" && (
               <motion.button
                 variants={buttonVariants}
                 whileHover="hover"
@@ -523,7 +523,7 @@ const handleEdit = () => {
                 Start Inspection
               </motion.button>
             )}
-            {isAdmin && job.status === "in_progress" && (
+            {(isAdmin || isTeam) && job.status === "in_progress" && (
               <motion.button
                 variants={buttonVariants}
                 whileHover="hover"

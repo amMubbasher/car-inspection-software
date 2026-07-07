@@ -5,7 +5,6 @@ import { jobSchema } from "@/lib/validations/jobSchema";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { User } from "@/models/User";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 export async function POST(req: Request) {
   try {
@@ -61,29 +60,16 @@ export async function GET(req: Request) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Default to last 24 hours if no date range provided
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const end = endDate ? new Date(endDate) : new Date();
-
-    const role = session.user.role;
-    const email = session.user.email;
-
-    let query: any = { createdAt: { $gte: start, $lte: end } };
-
-    if (role !== "admin") {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      query.$or = [
-        { status: "pending" },
-        { status: "in_progress", assignedTo: user._id },
-      ];
+    const query: Record<string, unknown> = {};
+    if (startDate || endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (startDate) createdAt.$gte = new Date(startDate);
+      if (endDate) createdAt.$lte = new Date(endDate);
+      query.createdAt = createdAt;
     }
 
     const skip = (page - 1) * limit;
     const total = await Job.countDocuments(query);
-    // @ts-ignore
     const jobs = await Job.find(query)
       .populate("assignedTo", "email")
       .sort({ createdAt: -1 })
