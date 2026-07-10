@@ -71,7 +71,7 @@ export default function Navbar() {
     { href: dashboardHref, label: dashboardLabel, icon: UserCog, roles: ['admin', 'team'] },
     // { href: '/team/dashboard', label: 'Team Dashboard', icon: Wrench, roles: ['admin', 'team'] },
     { href: '/admin/dashboard/post-job', label: 'Post Job', icon: Car, roles: ['admin', 'team'] },
-    { href: '/admin/dashboard/add-user', label: 'Add User', icon: Home, roles: ['admin'] },
+    { href: '/admin/dashboard/users', label: 'Users', icon: Home, roles: ['admin'] },
   ];
 
   return (
@@ -109,7 +109,7 @@ export default function Navbar() {
                 <Car className="w-6 h-6 text-primary" />
               </motion.div>
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Car Inspection
+                Motor Expert
               </span>
               {hoveredLink === 'home' && (
                 <motion.span
@@ -145,7 +145,7 @@ export default function Navbar() {
                 className="rounded-md"
               />
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Car Inspection
+                Motor Expert
               </span>
             </motion.div>
 
