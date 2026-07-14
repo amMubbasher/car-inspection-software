@@ -8,6 +8,7 @@ export type PopularLanguage = {
 export const POPULAR_LANGUAGES: PopularLanguage[] = [
   { countryCode: "GB", name: "English", locale: "en", flag: "🇬🇧" },
   { countryCode: "AE", name: "Arabic", locale: "ar", flag: "🇦🇪" },
+  { countryCode: "IR", name: "Persian", locale: "fa", flag: "🇮🇷" },
   { countryCode: "PK", name: "Urdu", locale: "ur", flag: "🇵🇰" },
   { countryCode: "IN", name: "Hindi", locale: "hi", flag: "🇮🇳" },
   { countryCode: "FR", name: "French", locale: "fr", flag: "🇫🇷" },
