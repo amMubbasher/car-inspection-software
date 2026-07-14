@@ -68,8 +68,9 @@ export async function GET(req: Request) {
     const query: Record<string, unknown> = {};
     if (startDate || endDate) {
       const createdAt: Record<string, Date> = {};
-      if (startDate) createdAt.$gte = new Date(startDate);
-      if (endDate) createdAt.$lte = new Date(endDate);
+      // Date-only strings: include full calendar day (start midnight → end 23:59:59.999)
+      if (startDate) createdAt.$gte = new Date(`${startDate}T00:00:00`);
+      if (endDate) createdAt.$lte = new Date(`${endDate}T23:59:59.999`);
       query.createdAt = createdAt;
     }
 
