@@ -23,6 +23,13 @@ import {
 import type { Job } from "@/types/job";
 import { containerVariants, titleVariants } from "@/lib/animations";
 
+function getLocalDateString(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function TeamDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filtered, setFiltered] = useState<Job[]>([]);
@@ -31,8 +38,9 @@ export default function TeamDashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = getLocalDateString();
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
