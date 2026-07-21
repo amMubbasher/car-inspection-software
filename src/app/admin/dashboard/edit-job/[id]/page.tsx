@@ -250,7 +250,7 @@ export default function EditJobPage() {
             <option value="Paint and chassis inspection">Paint and chassis inspection</option>
             <option value="OBD inspection">OBD inspection</option>
             <option value="360 inspection">360 inspection</option>
-            <option value="Auction Comprehensive Inspection">Auction Comprehensive Inspection</option>
+            <option value="Comprehensive Inspection">Comprehensive Inspection</option>
           </select>
         </div>
       </div>

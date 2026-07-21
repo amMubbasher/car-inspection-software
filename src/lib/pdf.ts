@@ -360,6 +360,7 @@ export async function generateJobPDF(
     ? String(job.engineNumber).toUpperCase()
     : fallback;
   const reportDate = new Date().toLocaleDateString("en-GB", { timeZone: tz });
+  const inspectionTypeLabel = job.inspectionType?.trim() || fallback;
 
   const metaFields = [
     { label: PDF_LABELS_EN.fileNumber, value: String(job.jobCount ?? fallback) },
@@ -375,12 +376,19 @@ export async function generateJobPDF(
   const infoPad = 10;
   const rowHeight = 15;
   const labelSize = 11;
+  const headingSize = 13;
+  const headingGap = 8;
   const contentWidth = width - marginX * 2;
   const columnGap = 12;
   const costBoxHeight = 28;
   const minDiagramRowHeight = 190;
   const metaRowCount = metaFields.length;
-  let infoBoxHeight = infoPad * 2 + metaRowCount * rowHeight + 8;
+  let infoBoxHeight =
+    infoPad * 2 +
+    headingSize +
+    headingGap +
+    metaRowCount * rowHeight +
+    8;
 
   let diagramImg: Awaited<ReturnType<typeof embedRasterImage>> | null = null;
   let diagramDraw:
@@ -430,7 +438,13 @@ export async function generateJobPDF(
       color: cardFill,
     });
 
-    let metaY = y - infoPad - labelSize;
+    let metaY = y - infoPad - headingSize;
+    drawLatin(inspectionTypeLabel, boxX + infoPad, metaY, headingSize, {
+      font: latinBoldFont,
+      color: rgb(0.2, 0.2, 0.5),
+    });
+    metaY -= headingSize + headingGap;
+
     metaFields.forEach(({ label, value }) => {
       drawLabelValue(label, value, boxX + infoPad, metaY, labelSize);
       metaY -= rowHeight;
@@ -462,7 +476,7 @@ export async function generateJobPDF(
       color: rgb(0.92, 0.94, 1),
     });
     drawLabelValue(
-      PDF_LABELS_EN.cost,
+      `${inspectionTypeLabel} ${PDF_LABELS_EN.cost}`,
       `AED ${jobPrice.toLocaleString("en-AE")}`,
       marginX + infoPad,
       y - 18,
