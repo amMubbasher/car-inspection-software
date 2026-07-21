@@ -4,8 +4,10 @@ import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, PDFFont, StandardFonts } from "pdf-lib";
 import arabicReshaper from "arabic-reshaper";
 
-const ARABIC_LOCALES = new Set(["ar", "ur"]);
-const ARABIC_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+/** Locales that use Arabic script (and need Noto Sans Arabic + reshaping). */
+const ARABIC_SCRIPT_LOCALES = new Set(["ar", "ur", "fa"]);
+const ARABIC_SCRIPT_RE =
+  /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 export type PdfFontSet = {
   font: PDFFont;
@@ -14,11 +16,21 @@ export type PdfFontSet = {
   latinBoldFont: PDFFont;
 };
 
+function normalizeLocale(locale: string): string {
+  return (locale || "en").trim().toLowerCase().split(/[-_]/)[0] ?? "en";
+}
+
+export function usesArabicScript(locale: string): boolean {
+  return ARABIC_SCRIPT_LOCALES.has(normalizeLocale(locale));
+}
+
 function fontFileForLocale(locale: string): string {
-  const normalized = locale.toLowerCase();
-  if (ARABIC_LOCALES.has(normalized)) return "NotoSansArabic-Regular.ttf";
-  if (normalized === "hi" || normalized === "bn") return "NotoSansDevanagari-Regular.ttf";
-  if (normalized.startsWith("zh")) return "NotoSansSC-Regular.otf";
+  const base = normalizeLocale(locale);
+  if (ARABIC_SCRIPT_LOCALES.has(base)) return "NotoSansArabic-Regular.ttf";
+  if (base === "hi" || base === "bn") return "NotoSansDevanagari-Regular.ttf";
+  if (base === "zh" || locale.toLowerCase().startsWith("zh")) {
+    return "NotoSansSC-Regular.otf";
+  }
   return "NotoSans-Regular.ttf";
 }
 
@@ -39,9 +51,9 @@ export async function embedPdfFonts(
   pdfDoc: PDFDocument,
   locale: string
 ): Promise<PdfFontSet> {
-  const normalized = locale.toLowerCase();
+  const base = normalizeLocale(locale);
 
-  if (normalized === "en") {
+  if (base === "en") {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     return { font, boldFont, latinFont: font, latinBoldFont: boldFont };
@@ -77,11 +89,16 @@ export function containsArabicScript(text: string): boolean {
   return ARABIC_SCRIPT_RE.test(text);
 }
 
+/**
+ * Shape Arabic-script text for PDF (connected forms).
+ * Applies for ar/ur/fa, and also whenever the string itself contains Arabic letters
+ * (covers mixed content and locale variants like fa-IR).
+ */
 export function shapePdfText(text: string, locale: string): string {
-  const normalized = locale.toLowerCase();
-  if (!text || !ARABIC_LOCALES.has(normalized) || !containsArabicScript(text)) {
-    return text;
-  }
+  if (!text) return text;
+  const needsShape =
+    usesArabicScript(locale) || containsArabicScript(text);
+  if (!needsShape) return text;
   try {
     return arabicReshaper.convertArabic(text);
   } catch {
@@ -94,6 +111,7 @@ export function getDateLocale(locale: string): string {
     en: "en-GB",
     ar: "ar-AE",
     ur: "ur-PK",
+    fa: "fa-IR",
     hi: "hi-IN",
     fr: "fr-FR",
     de: "de-DE",
@@ -102,7 +120,7 @@ export function getDateLocale(locale: string): string {
     tr: "tr-TR",
     pt: "pt-PT",
     bn: "bn-BD",
-    "zh-cn": "zh-CN",
+    zh: "zh-CN",
   };
-  return map[locale.toLowerCase()] ?? "en-GB";
+  return map[normalizeLocale(locale)] ?? "en-GB";
 }
