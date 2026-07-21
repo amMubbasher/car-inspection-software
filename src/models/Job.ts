@@ -24,7 +24,7 @@ const JobSchema = new Schema(
     engineNumber: { type: String },
     inspectionType: { 
       type: String, 
-      enum: ["Chassis inspection", "Paint inspection", "Paint and chassis inspection", "OBD inspection", "360 inspection", "Auction Comprehensive Inspection"]
+      enum: ["Chassis inspection", "Paint inspection", "Paint and chassis inspection", "OBD inspection", "360 inspection", "Comprehensive Inspection"]
     },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User" },
     status: {

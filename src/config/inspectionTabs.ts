@@ -243,7 +243,7 @@ export const inspectionTabs = [
 {
   key: "exterior",
   label: "Exterior",
-  classification: ["Auction Comprehensive Inspection"],
+  classification: ["Comprehensive Inspection"],
   subIssues: [
     { key: "bodyPanelInspection", label: "Body Panel Inspection" },
     { key: "bumperFasciaInspection", label: "Bumper, Fascia Inspection" },
@@ -259,7 +259,7 @@ export const inspectionTabs = [
 {
   key: "interior",
   label: "Interior",
-  classification: ["Auction Comprehensive Inspection"],
+  classification: ["Comprehensive Inspection"],
   subIssues: [
     { key: "airbags", label: "Airbags" },
     { key: "safetyBelts", label: "Safety belts" },
@@ -285,7 +285,7 @@ export const inspectionTabs = [
 {
   key: "underhood",
   label: "Under Hood",
-  classification: ["Auction Comprehensive Inspection"],
+  classification: ["Comprehensive Inspection"],
   subIssues: [
     { key: "transferCase", label: "Transfer Case" },
     { key: "driveAxle", label: "Drive Axle" },
@@ -305,7 +305,7 @@ export const inspectionTabs = [
 {
 key: "underChassis",
 label: "Under Chassis Inspection",
-classification: ["Auction Comprehensive Inspection"],
+classification: ["Comprehensive Inspection"],
 subIssues: [
   { key: "chassisCondition", label: "Chassis Condition" },
   { key: "exhaustSystemCondition", label: "Exhaust System Condition" },
@@ -328,7 +328,7 @@ subIssues: [
 {
 key: "brakes",
 label: "Brake",
-classification: ["Auction Comprehensive Inspection"],
+classification: ["Comprehensive Inspection"],
 subIssues: [
   { key: "brakePadsShoes", label: "Brake Pads and Shoes" },
   { key: "parkingBrake", label: "Parking Brake" },
@@ -337,7 +337,7 @@ subIssues: [
 {
   key: "diagnostics",
   label: "Diagnostics",
-  classification: ["Auction Comprehensive Inspection"],
+  classification: ["Comprehensive Inspection"],
   subIssues: [
     { key: "obdCheck", label: "On Board Diagnostics Check (OBD)" },
   ],
@@ -345,7 +345,7 @@ subIssues: [
 {
 key: "roadTest",
 label: "Road Test",
-classification: ["Auction Comprehensive Inspection"],
+classification: ["Comprehensive Inspection"],
 subIssues: [
   { key: "engineStartsIdles", label: "Engine Starts and Idles Operation" },
   { key: "engineAcceleratesCruises", label: "Engine Accelerates and Cruises Properly & Smoothly" },

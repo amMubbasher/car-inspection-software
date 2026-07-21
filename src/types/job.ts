@@ -6,7 +6,7 @@ export type InspectionType =
   | "Paint and chassis inspection" 
   | "OBD inspection" 
   | "360 inspection"
-  | "Auction Comprehensive Inspection";
+  | "Comprehensive Inspection";
 
 export interface SubIssue {
   key: string;
