@@ -13,6 +13,15 @@ import { NoTranslate } from "@/components/ui/NoTranslate";
 import { cardVariants, buttonVariants, statusVariants } from "@/lib/animations";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
 import type { Severity, InspectionType } from "@/types/job";
+import { getSelectedLocale } from "@/lib/countryToLocale";
+
+function jobPdfUrl(jobId: string, receipt = false): string {
+  const params = new URLSearchParams();
+  params.set("locale", getSelectedLocale());
+  if (receipt) params.set("receipt", "1");
+  return `/api/pdf/${jobId}?${params.toString()}`;
+}
+
 export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJobs: () => void }) {
   const { data: session } = useSession();
   const [isHovered, setIsHovered] = useState(false);
@@ -444,7 +453,7 @@ const handleEdit = () => {
                 variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
-                onClick={() => window.open(`/api/pdf/${job._id}`, "_blank")}
+                onClick={() => window.open(jobPdfUrl(job._id), "_blank")}
                 className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
               >
                 <Download className="w-4 h-4" />
@@ -454,7 +463,7 @@ const handleEdit = () => {
                 variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
-                onClick={() => window.open(`/api/pdf/${job._id}?receipt=1`, "_blank")}
+                onClick={() => window.open(jobPdfUrl(job._id, true), "_blank")}
                 className="px-4 py-2 bg-gradient-to-r from-indigo-700 to-indigo-600 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
               >
                 <Download className="w-4 h-4" />

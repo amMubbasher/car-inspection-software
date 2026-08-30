@@ -8,12 +8,20 @@ import type { Job as JobType } from "@/types/job";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const started = Date.now();
+  let jobId = "?";
+
   try {
     const { id } = await params;
+    jobId = id;
+    console.log(`[pdf] request id=${id}`);
     await connectToDB();
     const job = await Job.findById(id).lean();
 
@@ -28,7 +36,7 @@ export async function GET(
       const bannerBuffer = await readFile(bannerPath);
       bannerBytes = new Uint8Array(bannerBuffer);
     } catch (e) {
-      console.warn("Failed to load banner image:", e);
+      console.warn(`[pdf] banner load failed:`, e instanceof Error ? e.message : e);
     }
 
     try {
@@ -36,7 +44,7 @@ export async function GET(
       const diagramBuffer = await readFile(diagramPath);
       carDiagramBytes = await processCarDiagramPng(new Uint8Array(diagramBuffer));
     } catch (e) {
-      console.warn("Failed to load car diagram image:", e);
+      console.warn(`[pdf] diagram load failed:`, e instanceof Error ? e.message : e);
     }
 
     const locale = getLocaleFromRequest(req);
@@ -55,6 +63,12 @@ export async function GET(
       ? `job-${safeName}-receipt.pdf`
       : `job-${safeName}.pdf`;
 
+    console.log(
+      `[pdf] done id=${jobId} ${Math.round(pdfBytes.length / 1024)}KB in ${
+        Date.now() - started
+      }ms`
+    );
+
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
       headers: {
@@ -63,12 +77,22 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("PDF generation error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[pdf] FAILED id=${jobId} after ${Date.now() - started}ms: ${
+        error instanceof Error ? error.name : "Error"
+      }: ${message}`
+    );
+    console.error(
+      `[pdf] stack: ${
+        error instanceof Error
+          ? (error.stack ?? "").split("\n").slice(1, 4).join(" | ")
+          : "n/a"
+      }`
+    );
+
     return NextResponse.json(
-      {
-        error: "Failed to generate PDF",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to generate PDF", details: message },
       { status: 500 }
     );
   }

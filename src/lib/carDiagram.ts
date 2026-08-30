@@ -42,21 +42,3 @@ export async function processCarDiagramPng(bytes: Uint8Array): Promise<Uint8Arra
       .toBuffer()
   );
 }
-
-export function fitImageDimensions(
-  imageWidth: number,
-  imageHeight: number,
-  maxWidth: number,
-  maxHeight: number
-): { width: number; height: number } {
-  const aspect = imageWidth / imageHeight;
-  let drawWidth = maxWidth;
-  let drawHeight = drawWidth / aspect;
-
-  if (drawHeight > maxHeight) {
-    drawHeight = maxHeight;
-    drawWidth = drawHeight * aspect;
-  }
-
-  return { width: drawWidth, height: drawHeight };
-}

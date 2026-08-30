@@ -1,7 +1,18 @@
-import { getLanguageByCountryCode, POPULAR_LANGUAGES } from "./popularLanguages";
+import {
+  DEFAULT_COUNTRY_CODE,
+  getLanguageByCountryCode,
+  POPULAR_LANGUAGES,
+} from "./popularLanguages";
 
 export function countryCodeToLocale(countryCode: string): string {
   return getLanguageByCountryCode(countryCode)?.locale ?? "en";
+}
+
+export function getSelectedLocale(): string {
+  if (typeof window === "undefined") return "en";
+  const countryCode =
+    localStorage.getItem("selectedLanguage") ?? DEFAULT_COUNTRY_CODE;
+  return countryCodeToLocale(countryCode);
 }
 
 export function localeToCountryCode(locale: string): string {
