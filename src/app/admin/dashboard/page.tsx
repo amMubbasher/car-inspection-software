@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Filter, RefreshCw, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Search, Filter, RefreshCw, ChevronLeft, ChevronRight, Calendar, UserPlus } from "lucide-react";
 import type { Job } from "@/types/job";
+import type { SafeUser } from "@/lib/serializeUser";
 import { containerVariants, titleVariants } from "@/lib/animations";
 
 function getLocalDateString(date = new Date()) {
@@ -26,6 +27,15 @@ export default function AdminDashboard() {
   const today = getLocalDateString();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
+  const [createdBy, setCreatedBy] = useState("");
+  const [users, setUsers] = useState<SafeUser[]>([]);
+
+  useEffect(() => {
+    fetch("/api/users?limit=1000")
+      .then((res) => (res.ok ? res.json() : { users: [] }))
+      .then((data) => setUsers(data.users ?? []))
+      .catch(() => setUsers([]));
+  }, []);
 
   const fetchJobs = async (currentPage = page) => {
     setIsRefreshing(true);
@@ -34,6 +44,7 @@ export default function AdminDashboard() {
       limit: "10",
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
+      ...(createdBy && { createdBy }),
     });
     const res = await fetch(`/api/jobs?${params}`);
     const data = await res.json();
@@ -48,13 +59,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchJobs(1);
     setPage(1);
-  }, [startDate, endDate]);
+  }, [startDate, endDate, createdBy]);
 
   const handleSearch = (query: string) => {
     const filteredJobs = jobs.filter(
       (job) =>
         job.carNumber.toLowerCase().includes(query.toLowerCase()) ||
-        job.customerName.toLowerCase().includes(query.toLowerCase())
+        job.customerName.toLowerCase().includes(query.toLowerCase()) ||
+        (job.customerPhone ?? "").toLowerCase().includes(query.toLowerCase())
     );
     setFiltered(filteredJobs);
   };
@@ -110,7 +122,7 @@ export default function AdminDashboard() {
         </motion.div>
 
         {/* Date range and filters */}
-        <motion.div variants={titleVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 pb-2 gap-4">
+        <motion.div variants={titleVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 pb-2 gap-4">
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -134,7 +146,7 @@ export default function AdminDashboard() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by car or customer..."
+              placeholder="Search by car, customer or phone..."
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
             />
@@ -154,6 +166,23 @@ export default function AdminDashboard() {
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="accepted">Accepted</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select onValueChange={(value) => setCreatedBy(value === "all" ? "" : value)}>
+            <SelectTrigger className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Filter by created by" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80">
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user._id} value={user._id}>
+                  {user.name || user.email}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </motion.div>

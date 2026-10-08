@@ -123,6 +123,7 @@ export default function EditJobPage() {
     const payload = {
       carNumber: form.carNumber,
       customerName: form.customerName,
+      customerPhone: form.customerPhone ?? "",
       engineNumber: form.engineNumber,
       odometer: form.odometer,
       inspectionType: form.inspectionType,
@@ -201,6 +202,14 @@ export default function EditJobPage() {
           placeholder="Customer Name"
           value={form.customerName}
           onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          translate="no"
+        />
+        <input
+          type="tel"
+          placeholder="Customer Phone Number"
+          value={form.customerPhone || ""}
+          onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
           className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           translate="no"
         />
