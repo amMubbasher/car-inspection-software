@@ -3,6 +3,7 @@ import { Job } from "@/models/Job";
 import { Counter } from "@/models/Counter";
 import { jobSchema } from "@/lib/validations/jobSchema";
 import { NextResponse } from "next/server";
+import { isValidObjectId } from "mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     const jobData = {
       ...parsed.data,
       jobCount: counter.value,
+      createdBy: session.user._id,
       price: Math.max(0, Number(parsed.data.price) || 0),
     };
     
@@ -64,6 +66,7 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const createdBy = searchParams.get("createdBy");
 
     const query: Record<string, unknown> = {};
     if (startDate || endDate) {
@@ -73,11 +76,15 @@ export async function GET(req: Request) {
       if (endDate) createdAt.$lte = new Date(`${endDate}T23:59:59.999`);
       query.createdAt = createdAt;
     }
+    if (createdBy && isValidObjectId(createdBy)) {
+      query.createdBy = createdBy;
+    }
 
     const skip = (page - 1) * limit;
     const total = await Job.countDocuments(query);
     const jobs = await Job.find(query)
       .populate("assignedTo", "email")
+      .populate("createdBy", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

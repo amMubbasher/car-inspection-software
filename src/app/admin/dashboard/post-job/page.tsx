@@ -19,6 +19,7 @@ export default function PostJobPage() {
     _id: "",
     carNumber: "",
     customerName: "",
+    customerPhone: "",
     engineNumber: "",
     odometer: undefined,
     status: "pending",
@@ -126,6 +127,7 @@ export default function PostJobPage() {
       const payload = {
         carNumber: form.carNumber,
         customerName: form.customerName,
+        customerPhone: form.customerPhone,
         engineNumber: form.engineNumber,
         odometer: form.odometer,
         inspectionType: form.inspectionType,
@@ -182,6 +184,19 @@ export default function PostJobPage() {
             placeholder="Inspector Name"
             value={form.customerName}
             onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            translate="no"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Customer Phone
+          </label>
+          <input
+            type="tel"
+            placeholder="Customer Phone Number"
+            value={form.customerPhone}
+            onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
             className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             translate="no"
           />
