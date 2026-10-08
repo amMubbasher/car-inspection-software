@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Check, X, Download, Wrench, Car, User } from "lucide-react";
+import { Sparkles, Check, X, Download, Wrench, Car, User, Phone, UserPlus } from "lucide-react";
 import { NoTranslate } from "@/components/ui/NoTranslate";
 import { cardVariants, buttonVariants, statusVariants } from "@/lib/animations";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
@@ -35,6 +35,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
   const [formData, setFormData] = useState({
     carNumber: job.carNumber || "",
     customerName: job.customerName || "",
+    customerPhone: job.customerPhone || "",
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
     odometer: job.odometer || 0,
@@ -103,6 +104,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
     setFormData({
       carNumber: job.carNumber || "",
       customerName: job.customerName || "",
+    customerPhone: job.customerPhone || "",
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
       odometer: job.odometer || 0,
@@ -132,6 +134,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
         body: JSON.stringify({
           carNumber: formData.carNumber,
           customerName: formData.customerName,
+          customerPhone: formData.customerPhone,
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
           odometer: formData.odometer,
@@ -346,6 +349,12 @@ const handleEdit = () => {
                   <User className="w-4 h-4" />
                   <NoTranslate>{job.customerName}</NoTranslate>
                 </p>
+                {job.customerPhone && (
+                  <p className="text-muted-foreground flex items-center gap-1 text-sm">
+                    <Phone className="w-4 h-4" />
+                    <NoTranslate>{job.customerPhone}</NoTranslate>
+                  </p>
+                )}
               </div>
             </div>
             
@@ -384,18 +393,33 @@ const handleEdit = () => {
               </div>
             </div>
             
-            {assignedTo && (
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Assigned</p>
-                  <p className="truncate text-card-foreground font-medium">
-                    {job.assignedTo?.email || assignedTo}
-                  </p>
-                </div>
+            {(assignedTo || job.createdBy) && (
+              <div className="flex flex-col gap-2 min-w-0">
+                {assignedTo && (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Assigned</p>
+                      <p className="truncate text-card-foreground font-medium">
+                        {job.assignedTo?.email || assignedTo}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {job.createdBy && (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserPlus className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="text-muted-foreground">Created By</p>
+                      <p className="truncate text-card-foreground font-medium">
+                        <NoTranslate>{job.createdBy.name || job.createdBy.email}</NoTranslate>
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            
+
             {job.inspectionType && (
               <div className="flex items-center gap-2 col-span-2">
                 <Sparkles className="w-4 h-4 text-indigo-500" />
@@ -583,6 +607,18 @@ const handleEdit = () => {
                       value={formData.customerName}
                       onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                       placeholder="Enter customer name"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="customerPhone">Customer Phone</Label>
+                    <Input
+                      id="customerPhone"
+                      type="tel"
+                      className="notranslate"
+                      translate="no"
+                      value={formData.customerPhone}
+                      onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                      placeholder="Enter customer phone number"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">

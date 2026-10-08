@@ -27,6 +27,7 @@ export interface Job {
   jobCount: number;
   carNumber: string;
   customerName: string;
+  customerPhone?: string;
   engineNumber?: string;
   odometer?: number;
   inspectionType?: InspectionType;
@@ -34,6 +35,11 @@ export interface Job {
   assignedTo?: {
     _id: string;
     email: string;
+  } | null;
+  createdBy?: {
+    _id: string;
+    email: string;
+    name?: string;
   } | null;
   rejectionNote?: string;
   price?: number;

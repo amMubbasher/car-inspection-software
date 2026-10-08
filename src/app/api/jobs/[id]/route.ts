@@ -10,7 +10,9 @@ export async function GET(req, { params }) {
   try {
     const { id } = await params;
     await connectToDB();
-    const job = await Job.findById(id).populate("assignedTo", "email");
+    const job = await Job.findById(id)
+      .populate("assignedTo", "email")
+      .populate("createdBy", "name email");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
@@ -44,6 +46,7 @@ export async function PATCH(req, { params }) {
     // 2. Full job edit (carNumber, customerName, inspectionTabs, etc.)
     if (body.carNumber) updatePayload.carNumber = body.carNumber;
     if (body.customerName) updatePayload.customerName = body.customerName;
+    if (body.customerPhone !== undefined) updatePayload.customerPhone = String(body.customerPhone).trim();
     if (body.engineNumber !== undefined) updatePayload.engineNumber = body.engineNumber;
     if (body.odometer !== undefined) updatePayload.odometer = body.odometer;
     if (body.inspectionType !== undefined) updatePayload.inspectionType = body.inspectionType;
