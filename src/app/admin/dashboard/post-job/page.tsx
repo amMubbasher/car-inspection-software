@@ -14,6 +14,7 @@ export default function PostJobPage() {
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const prevInspectionTypeRef = useRef<InspectionType | undefined>(undefined);
   const [form, setForm] = useState<Partial<Job>>({
     _id: "",
@@ -117,6 +118,7 @@ export default function PostJobPage() {
     }
     
     setIsSubmitting(true);
+    setSubmitError("");
     
     try {
       const payload = {
@@ -134,17 +136,20 @@ export default function PostJobPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = await res.json().catch(() => null);
       if (res.ok) {
         router.push(
           session?.user?.role === "team" ? "/team/dashboard" : "/admin/dashboard"
         );
-      } else {
-        alert("Failed to submit job. Please try again.");
-        setIsSubmitting(false);
+        return;
       }
+      const details =
+        data?.details && typeof data.details === "string" ? data.details : "";
+      setSubmitError(details || data?.error || "Failed to submit job. Please try again.");
+      setIsSubmitting(false);
     } catch (error) {
       console.error("Error submitting job:", error);
-      alert("An error occurred while submitting the job.");
+      setSubmitError("An error occurred while submitting the job.");
       setIsSubmitting(false);
     }
   };
@@ -252,7 +257,13 @@ export default function PostJobPage() {
               </select>
             </div>
           </div>
+          {submitError && (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+              {submitError}
+            </p>
+          )}
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
             className="mt-5 flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"

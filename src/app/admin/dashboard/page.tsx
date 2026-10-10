@@ -25,6 +25,7 @@ import JobDetailsPanel, {
   JobStatusBadge,
 } from "@/components/JobDetailsPanel";
 import { NoTranslate } from "@/components/ui/NoTranslate";
+import { localDayBound } from "@/lib/localDay";
 import type { Job } from "@/types/job";
 import type { SafeUser } from "@/lib/serializeUser";
 
@@ -107,8 +108,8 @@ export default function AdminDashboard() {
     const params = new URLSearchParams({
       page: currentPage.toString(),
       limit: String(PAGE_SIZE),
-      ...(startDate && { startDate }),
-      ...(endDate && { endDate }),
+      ...(startDate && { startDate: localDayBound(startDate, "start") }),
+      ...(endDate && { endDate: localDayBound(endDate, "end") }),
       ...(createdBy && { createdBy }),
     });
     try {

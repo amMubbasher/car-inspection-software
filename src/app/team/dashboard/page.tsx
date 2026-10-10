@@ -20,6 +20,7 @@ import {
   Calendar,
   Wrench,
 } from "lucide-react";
+import { localDayBound } from "@/lib/localDay";
 import type { Job } from "@/types/job";
 import { containerVariants, titleVariants } from "@/lib/animations";
 
@@ -81,8 +82,8 @@ export default function TeamDashboard() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
+        ...(startDate && { startDate: localDayBound(startDate, "start") }),
+        ...(endDate && { endDate: localDayBound(endDate, "end") }),
       });
       const res = await fetch(`/api/jobs?${params}`);
       const data = await res.json();

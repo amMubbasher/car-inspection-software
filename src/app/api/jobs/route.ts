@@ -10,6 +10,14 @@ import { authOptions } from "@/lib/authOptions";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 
 export const dynamic = "force-dynamic";
+
+function parseFilterDate(value: string | null, endOfDay: boolean) {
+  if (!value) return null;
+  const date = value.includes("T")
+    ? new Date(value)
+    : new Date(endOfDay ? `${value}T23:59:59.999` : `${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -86,10 +94,11 @@ export async function GET(req: Request) {
     const query: Record<string, unknown> = {};
     if (startDate || endDate) {
       const createdAt: Record<string, Date> = {};
-      // Date-only strings: include full calendar day (start midnight → end 23:59:59.999)
-      if (startDate) createdAt.$gte = new Date(`${startDate}T00:00:00`);
-      if (endDate) createdAt.$lte = new Date(`${endDate}T23:59:59.999`);
-      query.createdAt = createdAt;
+      const start = parseFilterDate(startDate, false);
+      const end = parseFilterDate(endDate, true);
+      if (start) createdAt.$gte = start;
+      if (end) createdAt.$lte = end;
+      if (Object.keys(createdAt).length > 0) query.createdAt = createdAt;
     }
     if (createdBy && isValidObjectId(createdBy)) {
       query.createdBy = createdBy;
