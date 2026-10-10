@@ -44,11 +44,18 @@
 
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth';
 import { connectToDB } from '@/lib/db';
 import { User } from '@/models/User';
+import { authOptions } from '@/lib/authOptions';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     await connectToDB();
 
     // Change to your real email
@@ -71,7 +78,7 @@ export async function GET() {
     });
 
     return NextResponse.json(
-      { message: 'Admin created successfully.', user: newAdmin },
+      { message: 'Admin created successfully.', id: newAdmin._id },
       { status: 201 }
     );
   } catch (error: unknown) {

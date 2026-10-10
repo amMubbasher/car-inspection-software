@@ -8,10 +8,15 @@ import { authOptions } from "@/lib/authOptions";
 import { serializeJob } from "@/lib/serializeJob";
 export async function GET(req, { params }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !["admin", "team"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     await connectToDB();
     const job = await Job.findById(id)
-      .populate("assignedTo", "email")
+      .populate("assignedTo", "name email")
       .populate("createdBy", "name email");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });

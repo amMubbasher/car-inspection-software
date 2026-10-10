@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   Search,
   RefreshCw,
@@ -12,6 +11,10 @@ import {
   Trash2,
   Users,
   X,
+  User,
+  Mail,
+  Lock,
+  Shield,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,12 +25,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { NoTranslate } from "@/components/ui/NoTranslate";
 import type { SafeUser } from "@/lib/serializeUser";
 import {
   createUserSchema,
   updateUserSchema,
 } from "@/lib/validations/userSchema";
-import { containerVariants, titleVariants } from "@/lib/animations";
 
 type UserForm = {
   name: string;
@@ -43,6 +46,59 @@ const emptyForm: UserForm = {
   role: "team",
 };
 
+const PAGE_SIZE = 10;
+
+function roleLabel(role: SafeUser["role"]) {
+  return role === "admin" ? "Administrator" : "Team Member";
+}
+
+function roleClass(role: SafeUser["role"]) {
+  return role === "admin"
+    ? "bg-purple-100 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400"
+    : "bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400";
+}
+
+function RoleBadge({ role }: { role: SafeUser["role"] }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${roleClass(role)}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+      {roleLabel(role)}
+    </span>
+  );
+}
+
+function pageList(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const pages: (number | "ellipsis")[] = [1];
+  if (current > 3) pages.push("ellipsis");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let pageNumber = start; pageNumber <= end; pageNumber += 1) pages.push(pageNumber);
+  if (current < total - 2) pages.push("ellipsis");
+  pages.push(total);
+  return pages;
+}
+
+function DetailRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <span className="text-gray-400 dark:text-gray-500">{icon}</span>
+      <span className="flex-1 text-sm text-gray-500 dark:text-gray-400">{label}</span>
+      <NoTranslate className="text-right text-sm font-medium text-gray-900 dark:text-white">
+        {value}
+      </NoTranslate>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<SafeUser[]>([]);
   const [search, setSearch] = useState("");
@@ -52,6 +108,7 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
@@ -82,10 +139,10 @@ export default function UsersPage() {
       try {
         const params = new URLSearchParams({
           page: currentPage.toString(),
-          limit: "10",
+          limit: String(PAGE_SIZE),
           ...(debouncedSearch && { search: debouncedSearch }),
         });
-        const res = await fetch(`/api/users?${params}`);
+        const res = await fetch(`/api/users?${params}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.message || data.details || "Failed to fetch users");
@@ -140,7 +197,7 @@ export default function UsersPage() {
     setDeleteOpen(true);
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError("");
     setIsSubmitting(true);
@@ -220,6 +277,7 @@ export default function UsersPage() {
       }
       setAlert({ type: "success", message: "User deleted successfully" });
       setDeleteOpen(false);
+      if (selectedId === deletingUser._id) setSelectedId(null);
       const nextPage = users.length === 1 && page > 1 ? page - 1 : page;
       setPage(nextPage);
       fetchUsers(nextPage);
@@ -230,201 +288,267 @@ export default function UsersPage() {
     }
   };
 
+  const selected = users.find((user) => user._id === selectedId) ?? null;
+  const rangeStart = users.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = (page - 1) * PAGE_SIZE + users.length;
+
+  const goToPage = (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page || isRefreshing) return;
+    setPage(nextPage);
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={containerVariants}
-        className="space-y-6"
-      >
-        <motion.div
-          variants={titleVariants}
-          className="flex flex-col md:flex-row justify-between gap-4"
-        >
-          <div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              User Management
-            </h2>
-            <p className="text-muted-foreground">
-              Create, edit, and manage team accounts
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => fetchUsers(page)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={openAddDialog}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add User
-            </motion.button>
-          </div>
-        </motion.div>
-
-        {alert && (
-          <motion.div
-            variants={titleVariants}
-            className={`flex items-start justify-between gap-3 p-4 rounded-lg border-l-4 ${
-              alert.type === "error"
-                ? "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300"
-                : "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300"
-            }`}
-          >
-            <p className="flex-1">{alert.message}</p>
-            <button
-              type="button"
-              onClick={() => setAlert(null)}
-              className="shrink-0 rounded-md p-1 opacity-70 hover:opacity-100 transition-opacity"
-              aria-label="Dismiss alert"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-
-        <motion.div variants={titleVariants} className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-          />
-        </motion.div>
-
-        {isLoading ? (
-          <motion.div
-            variants={titleVariants}
-            className="flex flex-col items-center justify-center py-12 gap-4"
-          >
-            <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
-            <h3 className="text-xl font-semibold">Loading users...</h3>
-          </motion.div>
-        ) : users.length === 0 ? (
-          <motion.div
-            variants={titleVariants}
-            className="flex flex-col items-center justify-center py-12 gap-4 text-center"
-          >
-            <Users className="w-10 h-10 text-muted-foreground" />
-            <h3 className="text-xl font-semibold">No users found</h3>
-            <p className="text-muted-foreground max-w-md">
-              Try adjusting your search or add a new user
-            </p>
-          </motion.div>
-        ) : (
-          <>
-            <motion.div
-              variants={titleVariants}
-              className="overflow-x-auto rounded-lg border bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm"
-            >
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 dark:bg-gray-800/50">
-                    <th className="text-left p-4 font-medium">Name</th>
-                    <th className="text-left p-4 font-medium">Email</th>
-                    <th className="text-left p-4 font-medium">Role</th>
-                    <th className="text-right p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr
-                      key={user._id}
-                      className="border-b last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
-                    >
-                      <td className="p-4 font-medium">{user.name || "—"}</td>
-                      <td className="p-4 text-muted-foreground">{user.email}</td>
-                      <td className="p-4">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            user.role === "admin"
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                              : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                          }`}
-                        >
-                          {user.role === "admin" ? "Administrator" : "Team Member"}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => openEditDialog(user)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => openDeleteDialog(user)}
-                            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </motion.div>
-
-            {totalPages > 1 && (
-              <motion.div
-                variants={titleVariants}
-                className="flex items-center justify-between border-t pt-4"
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Users</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Create, edit, and manage team accounts
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fetchUsers(page)}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
               >
-                <p className="text-sm text-muted-foreground">
-                  Showing {users.length} of {total} users
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={openAddDialog}
+                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add User
+              </button>
+            </div>
+          </div>
+
+          {alert && (
+            <div
+              className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+                alert.type === "error"
+                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300"
+                  : "border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300"
+              }`}
+            >
+              <p className="flex-1">{alert.message}</p>
+              <button
+                type="button"
+                onClick={() => setAlert(null)}
+                className="shrink-0 rounded-md p-1 opacity-70 hover:opacity-100"
+                aria-label="Dismiss alert"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="border-b border-gray-100 p-4 dark:border-gray-800">
+              <div className="relative max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search by name or email..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-white pl-10 dark:bg-gray-900"
+                />
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
+                <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
+                <p className="font-medium">Loading users...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <Users className="h-8 w-8 text-indigo-500" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No users found</h3>
+                <p className="max-w-md text-sm text-gray-500">
+                  Try adjusting your search or add a new user
                 </p>
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </motion.button>
-                  <span className="text-sm px-4">
-                    Page {page} of {totalPages}
-                  </span>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </motion.button>
+              </div>
+            ) : (
+              <>
+                <div className="relative overflow-x-auto">
+                  {isRefreshing && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-gray-900/70">
+                      <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+                    </div>
+                  )}
+                  <table className="w-full min-w-[640px] text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-400 dark:border-gray-800">
+                        <th className="px-4 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium">Email</th>
+                        <th className="px-4 py-3 font-medium">Role</th>
+                        <th className="w-10 px-4 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => {
+                        const isSelected = user._id === selectedId;
+                        return (
+                          <tr
+                            key={user._id}
+                            onClick={() => setSelectedId(user._id)}
+                            className={`cursor-pointer border-b border-gray-50 transition-colors last:border-0 dark:border-gray-800/60 ${
+                              isSelected
+                                ? "bg-indigo-50/80 dark:bg-indigo-500/10"
+                                : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                  <User className="h-4 w-4" />
+                                </span>
+                                <NoTranslate as="p" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                  {user.name || "—"}
+                                </NoTranslate>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <NoTranslate as="p" className="truncate text-sm text-gray-600 dark:text-gray-300">
+                                {user.email}
+                              </NoTranslate>
+                            </td>
+                            <td className="px-4 py-3">
+                              <RoleBadge role={user.role} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              <ChevronRight className="h-4 w-4" />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </motion.div>
+
+                <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row dark:border-gray-800">
+                  <p className="text-sm text-gray-500">
+                    Showing {rangeStart} to {rangeEnd} of {total} users
+                  </p>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => goToPage(page - 1)}
+                        disabled={page === 1 || isRefreshing}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      {pageList(page, totalPages).map((item, index) =>
+                        item === "ellipsis" ? (
+                          <span key={`ellipsis-${index}`} className="px-1 text-sm text-gray-400">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => goToPage(item)}
+                            disabled={isRefreshing}
+                            className={`h-8 min-w-8 rounded-lg px-2 text-sm disabled:opacity-40 ${
+                              item === page
+                                ? "bg-indigo-600 text-white"
+                                : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => goToPage(page + 1)}
+                        disabled={page === totalPages || isRefreshing}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
-          </>
+          </div>
+        </div>
+
+        {selected && (
+          <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:w-[380px]">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5 dark:border-gray-800">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <User className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <NoTranslate as="p" className="truncate text-lg font-semibold text-gray-900 dark:text-white">
+                      {selected.name || "—"}
+                    </NoTranslate>
+                    <RoleBadge role={selected.role} />
+                  </div>
+                  <NoTranslate as="p" className="mt-1 truncate text-xs text-gray-400">
+                    {selected.email}
+                  </NoTranslate>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                aria-label="Close user details"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <section>
+                <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">User Details</h3>
+                <DetailRow icon={<User className="h-4 w-4" />} label="Name" value={selected.name || "—"} />
+                <DetailRow icon={<Mail className="h-4 w-4" />} label="Email" value={selected.email} />
+                <DetailRow icon={<Shield className="h-4 w-4" />} label="Role" value={roleLabel(selected.role)} />
+              </section>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => openEditDialog(selected)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-green-500"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDeleteDialog(selected)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-red-500 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-400"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </aside>
         )}
-      </motion.div>
+      </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="rounded-2xl border-gray-200 p-0 dark:border-gray-800 sm:max-w-md">
+          <DialogHeader className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+            <DialogTitle className="text-lg">
               {formMode === "add" ? "Add User" : "Edit User"}
             </DialogTitle>
             <DialogDescription>
@@ -434,28 +558,39 @@ export default function UsersPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleFormSubmit} className="space-y-4">
+          <form onSubmit={handleFormSubmit} className="space-y-4 px-5 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <User className="h-4 w-4 text-gray-400" />
+                Name
+              </label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="John Doe"
+                className="notranslate"
+                translate="no"
                 required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Mail className="h-4 w-4 text-gray-400" />
+                Email
+              </label>
               <Input
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="user@example.com"
+                className="notranslate"
+                translate="no"
                 required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Lock className="h-4 w-4 text-gray-400" />
                 {formMode === "add" ? "Password" : "New Password"}
               </label>
               <Input
@@ -473,13 +608,16 @@ export default function UsersPage() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Shield className="h-4 w-4 text-gray-400" />
+                Role
+              </label>
               <select
                 value={form.role}
                 onChange={(e) =>
                   setForm({ ...form, role: e.target.value as "admin" | "team" })
                 }
-                className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full rounded-md border border-gray-300 bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
               >
                 <option value="team">Team Member</option>
                 <option value="admin">Administrator</option>
@@ -490,18 +628,18 @@ export default function UsersPage() {
               <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
             )}
 
-            <DialogFooter>
+            <DialogFooter className="grid grid-cols-2 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setFormOpen(false)}
-                className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors"
+                className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50"
               >
                 {isSubmitting
                   ? "Saving..."
@@ -515,7 +653,7 @@ export default function UsersPage() {
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-2xl border-gray-200 dark:border-gray-800 sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Delete User</DialogTitle>
             <DialogDescription>
@@ -529,11 +667,11 @@ export default function UsersPage() {
             <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setDeleteOpen(false)}
-              className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               Cancel
             </button>
@@ -541,7 +679,7 @@ export default function UsersPage() {
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors"
+              className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-400 disabled:opacity-50"
             >
               {isDeleting ? "Deleting..." : "Delete"}
             </button>

@@ -12,6 +12,7 @@ import { Sparkles, Check, X, Download, Wrench, Car, User, Phone, UserPlus } from
 import { NoTranslate } from "@/components/ui/NoTranslate";
 import { cardVariants, buttonVariants, statusVariants } from "@/lib/animations";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
+import { SeverityToggle } from "@/components/SeverityToggle";
 import type { Severity, InspectionType } from "@/types/job";
 import { getSelectedLocale } from "@/lib/countryToLocale";
 
@@ -550,7 +551,7 @@ const handleEdit = () => {
                 whileHover="hover"
                 whileTap="tap"
                 onClick={handleStartInspectionClick}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-500"
               >
                 <Sparkles className="w-4 h-4" />
                 Start Inspection
@@ -574,19 +575,18 @@ const handleEdit = () => {
 
       {/* Dialog for editing job details before starting inspection */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-gray-200 p-0 dark:border-gray-800 sm:max-w-4xl">
+          <DialogHeader className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
             <DialogTitle>Edit Job Details & Start Inspection</DialogTitle>
             <DialogDescription>
-              Update the job details and inspection items, then click "Update & Start" to begin.
+              Update the job details and inspection items, then click &quot;Update & Start&quot; to begin.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
-              {/* Basic Job Details */}
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-4">
-                <h3 className="font-semibold text-lg">Basic Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6 px-5 py-4">
+              <div className="space-y-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+                <h3 className="text-sm font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="carNumber">Car Number *</Label>
                     <Input
@@ -609,7 +609,7 @@ const handleEdit = () => {
                       placeholder="Enter customer name"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="customerPhone">Customer Phone</Label>
                     <Input
                       id="customerPhone"
@@ -621,7 +621,7 @@ const handleEdit = () => {
                       placeholder="Enter customer phone number"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="engineNumber">Engine Number</Label>
                     <Input
                       id="engineNumber"
@@ -632,7 +632,7 @@ const handleEdit = () => {
                       placeholder="Enter engine number"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="odometer">Current Odo</Label>
                     <Input
                       id="odometer"
@@ -643,7 +643,7 @@ const handleEdit = () => {
                       placeholder="Enter current odo"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="price">Price</Label>
                     <Input
                       id="price"
@@ -662,13 +662,13 @@ const handleEdit = () => {
                       placeholder="0"
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="inspectionType">Inspection Type *</Label>
                     <select
                       id="inspectionType"
                       value={formData.inspectionType}
                       onChange={(e) => setFormData({ ...formData, inspectionType: e.target.value as InspectionType })}
-                      className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     >
                       <option value="">Select Inspection Type</option>
                       <option value="Chassis inspection">Chassis inspection</option>
@@ -687,21 +687,21 @@ const handleEdit = () => {
                 <div className="space-y-4">
                   <h3 className="font-semibold text-lg">Inspection Details</h3>
                   
-                  <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 dark:border-indigo-900/40 dark:bg-indigo-500/10">
                     <p className="text-sm text-indigo-700 dark:text-indigo-300">
                       <span className="font-semibold">Inspection Type:</span> {formData.inspectionType}
                     </p>
                   </div>
                   
-                  {/* Tabs */}
                   <div className="flex flex-wrap gap-2">
                     {formData.inspectionTabs.map((tab) => (
                       <button
                         key={tab.key}
-                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        type="button"
+                        className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
                           activeTab === tab.key
                             ? "bg-indigo-600 text-white"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         }`}
                         onClick={() => setActiveTab(tab.key)}
                       >
@@ -719,66 +719,52 @@ const handleEdit = () => {
                         {tab.subIssues.map((issue) => (
                           <div
                             key={issue.key}
-                            className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-3"
+                            className="space-y-2 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
                           >
-                            <h4 className="font-medium text-sm">{issue.label}</h4>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs">Severity</Label>
-                                <select
-                                  value={issue.severity}
-                                  onChange={(e) =>
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      inspectionTabs: prev.inspectionTabs.map((t) =>
-                                        t.key === tab.key
-                                          ? {
-                                              ...t,
-                                              subIssues: t.subIssues.map((i) =>
-                                                i.key === issue.key
-                                                  ? { ...i, severity: e.target.value as Severity }
-                                                  : i
-                                              ),
-                                            }
-                                          : t
-                                      ),
-                                    }))
-                                  }
-                                  className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                                >
-                                  <option value="ok">OK</option>
-                                  <option value="minor">Minor</option>
-                                  <option value="major">Major</option>
-                                </select>
-                              </div>
-                              
-                              <div className="space-y-1 md:col-span-2">
-                                <Label className="text-xs">Comment</Label>
-                                <textarea
-                                  placeholder="Add comment..."
-                                  value={issue.comment}
-                                  onChange={(e) =>
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      inspectionTabs: prev.inspectionTabs.map((t) =>
-                                        t.key === tab.key
-                                          ? {
-                                              ...t,
-                                              subIssues: t.subIssues.map((i) =>
-                                                i.key === issue.key
-                                                  ? { ...i, comment: e.target.value }
-                                                  : i
-                                              ),
-                                            }
-                                          : t
-                                      ),
-                                    }))
-                                  }
-                                  className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded-md text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white min-h-[60px]"
-                                />
-                              </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h4 className="text-sm font-medium">{issue.label}</h4>
+                              <SeverityToggle
+                                value={issue.severity}
+                                onChange={(severity) =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    inspectionTabs: prev.inspectionTabs.map((t) =>
+                                      t.key === tab.key
+                                        ? {
+                                            ...t,
+                                            subIssues: t.subIssues.map((i) =>
+                                              i.key === issue.key ? { ...i, severity } : i
+                                            ),
+                                          }
+                                        : t
+                                    ),
+                                  }))
+                                }
+                              />
                             </div>
+                            <textarea
+                              rows={2}
+                              placeholder="Comment"
+                              value={issue.comment}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  inspectionTabs: prev.inspectionTabs.map((t) =>
+                                    t.key === tab.key
+                                      ? {
+                                          ...t,
+                                          subIssues: t.subIssues.map((i) =>
+                                            i.key === issue.key
+                                              ? { ...i, comment: e.target.value }
+                                              : i
+                                          ),
+                                        }
+                                      : t
+                                  ),
+                                }))
+                              }
+                              className="min-h-[60px] w-full resize-y rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                            />
                           </div>
                         ))}
                       </div>
@@ -794,27 +780,23 @@ const handleEdit = () => {
               )}
             </div>
 
-          <DialogFooter className="flex gap-2">
-            <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
+          <DialogFooter className="grid grid-cols-2 gap-2 border-t border-gray-100 px-5 py-4 dark:border-gray-800">
+            <button
+              type="button"
               onClick={() => setIsDialogOpen(false)}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+              className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               Cancel
-            </motion.button>
-            <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
+            </button>
+            <button
+              type="button"
               onClick={handleUpdateAndStart}
               disabled={isAnimating}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="h-4 w-4" />
               {isAnimating ? "Updating & Starting..." : "Update & Start"}
-            </motion.button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

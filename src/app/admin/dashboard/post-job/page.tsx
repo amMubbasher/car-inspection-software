@@ -18,7 +18,6 @@ export default function PostJobPage() {
   const [form, setForm] = useState<Partial<Job>>({
     _id: "",
     carNumber: "",
-    customerName: "",
     customerPhone: "",
     engineNumber: "",
     odometer: undefined,
@@ -112,10 +111,6 @@ export default function PostJobPage() {
       alert("Please enter a car number");
       return;
     }
-    if (!form.customerName) {
-      alert("Please enter an inspector name");
-      return;
-    }
     if (!form.inspectionType) {
       alert("Please select an inspection type");
       return;
@@ -126,7 +121,6 @@ export default function PostJobPage() {
     try {
       const payload = {
         carNumber: form.carNumber,
-        customerName: form.customerName,
         customerPhone: form.customerPhone,
         engineNumber: form.engineNumber,
         odometer: form.odometer,
@@ -155,126 +149,119 @@ export default function PostJobPage() {
     }
   };
 
+  const fieldClass =
+    "notranslate w-full rounded-md border border-gray-300 bg-white p-2 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white";
+
   return (
-    <div className="p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      {/* Job Details */}
-      <div className="bg-white dark:bg-gray-800 rounded shadow p-4 space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Job Details
-        </h2>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Car Number <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Car Number"
-            value={form.carNumber}
-            onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Inspector Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Inspector Name"
-            value={form.customerName}
-            onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Customer Phone
-          </label>
-          <input
-            type="tel"
-            placeholder="Customer Phone Number"
-            value={form.customerPhone}
-            onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Chassis Number
-          </label>
-          <input
-            type="text"
-            placeholder="Chassis Number"
-            value={form.engineNumber}
-            onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Odometer
-          </label>
-          <input
-            type="number"
-            placeholder="Odometer Reading"
-            value={form.odometer || ""}
-            onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Price
-          </label>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            placeholder="0"
-            value={form.price ?? 0}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                price: Math.max(0, Number(e.target.value) || 0),
-              })
-            }
-            className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-            translate="no"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Inspection Type <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={form.inspectionType || ""}
-            onChange={(e) => setForm({ ...form, inspectionType: e.target.value as InspectionType })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
+      <div className="mx-auto max-w-3xl space-y-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Post Job</h2>
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+            Job Details
+          </h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Car Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Car Number"
+                value={form.carNumber}
+                onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
+                className={fieldClass}
+                translate="no"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Customer Phone
+              </label>
+              <input
+                type="tel"
+                placeholder="Customer Phone Number"
+                value={form.customerPhone}
+                onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                className={fieldClass}
+                translate="no"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Chassis Number
+              </label>
+              <input
+                type="text"
+                placeholder="Chassis Number"
+                value={form.engineNumber}
+                onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
+                className={fieldClass}
+                translate="no"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Odometer
+              </label>
+              <input
+                type="number"
+                placeholder="Odometer Reading"
+                value={form.odometer || ""}
+                onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+                className={fieldClass}
+                translate="no"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Price
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="0"
+                value={form.price ?? 0}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    price: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+                className={fieldClass}
+                translate="no"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Inspection Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.inspectionType || ""}
+                onChange={(e) => setForm({ ...form, inspectionType: e.target.value as InspectionType })}
+                className={fieldClass}
+              >
+                <option value="">Select Inspection Type</option>
+                <option value="Chassis inspection">Chassis inspection</option>
+                <option value="Paint inspection">Paint inspection</option>
+                <option value="Paint and chassis inspection">Paint and chassis inspection</option>
+                <option value="OBD inspection">OBD inspection</option>
+                <option value="360 inspection">360 inspection</option>
+                <option value="Comprehensive Inspection">Comprehensive Inspection</option>
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="mt-5 flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <option value="">Select Inspection Type</option>
-            <option value="Chassis inspection">Chassis inspection</option>
-            <option value="Paint inspection">Paint inspection</option>
-            <option value="Paint and chassis inspection">Paint and chassis inspection</option>
-            <option value="OBD inspection">OBD inspection</option>
-            <option value="360 inspection">360 inspection</option>
-            <option value="Comprehensive Inspection">Comprehensive Inspection</option>
-          </select>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSubmitting ? "Submitting..." : "Submit Job"}
+          </button>
         </div>
       </div>
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        className="mt-6 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-      >
-        {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isSubmitting ? "Submitting..." : "Submit Job"}
-      </button>
     </div>
   );
 }

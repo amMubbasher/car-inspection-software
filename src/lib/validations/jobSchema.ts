@@ -16,7 +16,7 @@ export const inspectionTabSchema = z.object({
 
 export const jobSchema = z.object({
   carNumber: z.string().min(1, "Car number is required"),
-  customerName: z.string().min(1, "Customer name is required"),
+  customerName: z.string().min(1).optional(),
   customerPhone: z.string().trim().optional(),
   engineNumber: z.string().optional(),
   odometer: z.number().optional(),

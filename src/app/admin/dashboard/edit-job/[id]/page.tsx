@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 // import { FiUpload } from "react-icons/fi";
+import { SeverityToggle } from "@/components/SeverityToggle";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
 import type { Job, Severity, InspectionType } from "@/types/job";
 
@@ -180,181 +181,199 @@ export default function EditJobPage() {
       prevInspectionTypeRef.current = form.inspectionType;
     }
   }, [form?.inspectionType]);
-  if (loading || !form) return <p className="p-6">Loading job...</p>;
+  const fieldClass =
+    "notranslate w-full rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white";
+
+  if (loading || !form) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 text-sm text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+        Loading job...
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
+      <div className="mx-auto max-w-4xl space-y-4">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Job</h2>
       {/* Job Details */}
-      <div className="bg-white dark:bg-gray-800 rounded shadow p-4 space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Edit Job
-        </h2>
-        <input
-          type="text"
-          placeholder="Car Number"
-          value={form.carNumber}
-          onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <input
-          type="text"
-          placeholder="Customer Name"
-          value={form.customerName}
-          onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <input
-          type="tel"
-          placeholder="Customer Phone Number"
-          value={form.customerPhone || ""}
-          onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <input
-          type="text"
-          placeholder="Engine Number"
-          value={form.engineNumber || ""}
-          onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <input
-          type="number"
-          placeholder="Odometer Reading"
-          value={form.odometer || ""}
-          onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Price
-        </label>
-        <input
-          type="number"
-          min={0}
-          step={1}
-          placeholder="0"
-          value={form.price ?? 0}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              price: Math.max(0, Number(e.target.value) || 0),
-            })
-          }
-          className="notranslate w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          translate="no"
-        />
-        <div>
-          <select
-            value={form.inspectionType || ""}
-            onChange={(e) => setForm({ ...form, inspectionType: e.target.value as InspectionType })}
-            className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="">Select Inspection Type</option>
-            <option value="Chassis inspection">Chassis inspection</option>
-            <option value="Paint inspection">Paint inspection</option>
-            <option value="Paint and chassis inspection">Paint and chassis inspection</option>
-            <option value="OBD inspection">OBD inspection</option>
-            <option value="360 inspection">360 inspection</option>
-            <option value="Comprehensive Inspection">Comprehensive Inspection</option>
-          </select>
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Job Details</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Car Number</label>
+            <input
+              type="text"
+              placeholder="Car Number"
+              value={form.carNumber}
+              onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+            <input
+              type="text"
+              placeholder="Customer Name"
+              value={form.customerName}
+              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
+            <input
+              type="tel"
+              placeholder="Customer Phone Number"
+              value={form.customerPhone || ""}
+              onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Engine Number</label>
+            <input
+              type="text"
+              placeholder="Engine Number"
+              value={form.engineNumber || ""}
+              onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Odometer</label>
+            <input
+              type="number"
+              placeholder="Odometer Reading"
+              value={form.odometer || ""}
+              onChange={(e) => setForm({ ...form, odometer: e.target.value ? Number(e.target.value) : undefined })}
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="0"
+              value={form.price ?? 0}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  price: Math.max(0, Number(e.target.value) || 0),
+                })
+              }
+              className={fieldClass}
+              translate="no"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Inspection Type</label>
+            <select
+              value={form.inspectionType || ""}
+              onChange={(e) => setForm({ ...form, inspectionType: e.target.value as InspectionType })}
+              className={fieldClass}
+            >
+              <option value="">Select Inspection Type</option>
+              <option value="Chassis inspection">Chassis inspection</option>
+              <option value="Paint inspection">Paint inspection</option>
+              <option value="Paint and chassis inspection">Paint and chassis inspection</option>
+              <option value="OBD inspection">OBD inspection</option>
+              <option value="360 inspection">360 inspection</option>
+              <option value="Comprehensive Inspection">Comprehensive Inspection</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap space-x-2 mb-4">
-        {form.inspectionTabs.map((tab) => (
-          <button
-            key={tab.key}
-            className={`px-4 py-2 my-2 rounded transition-colors ${
-              activeTab === tab.key
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
-            }`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Inspection Details</h3>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {form.inspectionTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
+                activeTab === tab.key
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              }`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Tab Content */}
-      {form.inspectionTabs
-        .filter((tab) => tab.key === activeTab)
-        .map((tab) => (
-          <div key={tab.key} className="space-y-4">
-            {tab.subIssues.map((issue) => (
-              <div
-                key={issue.key}
-                className="p-4 bg-white dark:bg-gray-800 rounded shadow"
-              >
-                <h3 className="font-bold mb-2 text-gray-900 dark:text-white">
-                  {issue.label}
-                </h3>
-
-                <select
-                  value={issue.severity}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            inspectionTabs: prev.inspectionTabs.map((t) =>
-                              t.key === tab.key
-                                ? {
-                                    ...t,
-                                    subIssues: t.subIssues.map((i) =>
-                                      i.key === issue.key
-                                        ? {
-                                            ...i,
-                                            severity: e.target
-                                              .value as Severity,
-                                          }
-                                        : i
-                                    ),
-                                  }
-                                : t
-                            ),
-                          }
-                        : prev
-                    )
-                  }
-                  className="mb-2 border border-gray-300 dark:border-gray-600 p-2 rounded w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+        {form.inspectionTabs
+          .filter((tab) => tab.key === activeTab)
+          .map((tab) => (
+            <div key={tab.key} className="space-y-3">
+              {tab.subIssues.map((issue) => (
+                <div
+                  key={issue.key}
+                  className="space-y-2 rounded-xl border border-gray-200 p-3 dark:border-gray-700"
                 >
-                  <option value="minor">Minor</option>
-                  <option value="major">Major</option>
-                  <option value="ok">OK</option>
-                </select>
-
-                <textarea
-                  placeholder="Comment"
-                  value={issue.comment}
-                  onChange={(e) =>
-                    setForm((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            inspectionTabs: prev.inspectionTabs.map((t) =>
-                              t.key === tab.key
-                                ? {
-                                    ...t,
-                                    subIssues: t.subIssues.map((i) =>
-                                      i.key === issue.key
-                                        ? { ...i, comment: e.target.value }
-                                        : i
-                                    ),
-                                  }
-                                : t
-                            ),
-                          }
-                        : prev
-                    )
-                  }
-                  className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {issue.label}
+                    </h3>
+                    <SeverityToggle
+                      value={issue.severity}
+                      onChange={(severity) =>
+                        setForm((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                inspectionTabs: prev.inspectionTabs.map((t) =>
+                                  t.key === tab.key
+                                    ? {
+                                        ...t,
+                                        subIssues: t.subIssues.map((i) =>
+                                          i.key === issue.key ? { ...i, severity } : i
+                                        ),
+                                      }
+                                    : t
+                                ),
+                              }
+                            : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Comment"
+                    value={issue.comment}
+                    onChange={(e) =>
+                      setForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              inspectionTabs: prev.inspectionTabs.map((t) =>
+                                t.key === tab.key
+                                  ? {
+                                      ...t,
+                                      subIssues: t.subIssues.map((i) =>
+                                        i.key === issue.key
+                                          ? { ...i, comment: e.target.value }
+                                          : i
+                                      ),
+                                    }
+                                  : t
+                              ),
+                            }
+                          : prev
+                      )
+                    }
+                    className={`${fieldClass} min-h-[72px] resize-y`}
+                  />
                 {/* 
                 <label className="flex items-center space-x-2 cursor-pointer text-gray-900 dark:text-white">
                   <FiUpload />
@@ -387,18 +406,19 @@ export default function EditJobPage() {
                     ))}
                   </div>
                 )} */}
-              </div>
-            ))}
-          </div>
-        ))}
-
-      {/* Submit */}
-      <button
-        onClick={handleSubmit}
-        className="mt-6 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 text-white px-4 py-2 rounded transition-colors"
-      >
-        Save Changes
-      </button>
+                </div>
+              ))}
+            </div>
+          ))}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="mt-5 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
+        >
+          Save Changes
+        </button>
+      </div>
+      </div>
     </div>
   );
 }

@@ -93,6 +93,13 @@ export async function generateJobPDF(
   );
 
   const fallback = PDF_LABELS_EN.fallback;
+  const creator = job.createdBy;
+  const inspector =
+    (creator && typeof creator === "object"
+      ? creator.name?.trim() || creator.email
+      : "") ||
+    job.customerName ||
+    fallback;
   const inspectionType = job.inspectionType?.trim() || fallback;
   const reportDate = new Date().toLocaleDateString("en-GB", {
     timeZone: TIMEZONE,
@@ -110,7 +117,7 @@ export async function generateJobPDF(
         label: PDF_LABELS_EN.chassis,
         value: job.engineNumber ? String(job.engineNumber).toUpperCase() : fallback,
       },
-      { label: PDF_LABELS_EN.inspector, value: job.customerName || fallback },
+      { label: PDF_LABELS_EN.inspector, value: inspector },
       { label: PDF_LABELS_EN.date, value: reportDate },
       { label: PDF_LABELS_EN.currentOdo, value: String(job.odometer ?? fallback) },
     ],

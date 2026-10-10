@@ -35,6 +35,7 @@ export interface Job {
   assignedTo?: {
     _id: string;
     email: string;
+    name?: string;
   } | null;
   createdBy?: {
     _id: string;

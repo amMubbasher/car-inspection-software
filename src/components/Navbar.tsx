@@ -6,15 +6,25 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-import { Car, Wrench, UserCog, Home, Menu, X, LogOut } from 'lucide-react';
+import { Car, UserCog, Home, Menu, X, LogOut } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
-import { containerVariants, itemVariants, underlineVariants } from "@/lib/animations";
+import { containerVariants, itemVariants } from "@/lib/animations";
 import { LanguageModal } from '@/components/modals/LanguageModal';
 import { getSelectedCountryFlag, useGoogleTranslate } from '@/components/i18n/GoogleTranslateProvider';
 import { countryCodeToLocale } from '@/lib/countryToLocale';
 import { DEFAULT_COUNTRY_CODE } from '@/lib/popularLanguages';
 import logo from "../../logo.png"
 import Image from 'next/image';
+
+function isNavActive(pathname: string, href: string, hrefs: string[]) {
+  if (pathname === href) return true;
+  if (!pathname.startsWith(`${href}/`)) return false;
+  return !hrefs.some(
+    (other) =>
+      other !== href &&
+      (pathname === other || pathname.startsWith(`${other}/`))
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -62,7 +72,7 @@ export default function Navbar() {
     googleTranslate.setLanguageByCountryCode(countryCode);
   };
 
-  if (status === 'loading') return null;
+  if (status === 'loading' || pathname === '/login') return null;
 
   const dashboardHref = role === 'team' ? '/team/dashboard' : '/admin/dashboard';
   const dashboardLabel = role === 'team' ? 'Dashboard' : 'Admin Dashboard';
@@ -144,69 +154,36 @@ export default function Navbar() {
                 height={36}
                 className="rounded-md"
               />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-gray-900 dark:text-white">
                 Motor Expert
               </span>
             </motion.div>
-
-            {hoveredLink === 'home' && (
-              <motion.span
-                className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
-                initial="hidden"
-                animate="show"
-                variants={underlineVariants}
-                transition={{ duration: 0.3 }}
-              />
-            )}
           </Link>
         </motion.div>
 
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center gap-1">
             {navLinks
               .filter((link) => link.roles.includes(role))
               .map((link) => {
                 const Icon = link.icon;
-                const isActive = pathname.startsWith(link.href);
+                const hrefs = navLinks.map((item) => item.href);
+                const isActive = isNavActive(pathname, link.href, hrefs);
                 return (
-                  <motion.div
+                  <Link
                     key={link.href}
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onMouseEnter={() => setHoveredLink(link.href)}
-                    onMouseLeave={() => setHoveredLink(null)}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-indigo-600 text-white"
+                        : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                    )}
                   >
-                    <Link
-                      href={link.href}
-                      className={cn(
-                        "relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-                        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <motion.div
-                        animate={{
-                          rotate: hoveredLink === link.href ? 10 : 0,
-                          scale: hoveredLink === link.href ? 1.2 : 1
-                        }}
-                        transition={{ type: "spring", stiffness: 400 }}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </motion.div>
-                      <span>{link.label}</span>
-
-                      {(isActive || hoveredLink === link.href) && (
-                        <motion.span
-                          className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"
-                          initial="hidden"
-                          animate="show"
-                          variants={underlineVariants}
-                          transition={{ duration: 0.3 }}
-                        />
-                      )}
-                    </Link>
-                  </motion.div>
+                    <Icon className="h-4 w-4" />
+                    <span>{link.label}</span>
+                  </Link>
                 );
               })}
           </nav>
@@ -250,7 +227,7 @@ export default function Navbar() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => signOut({ callbackUrl: '/login' })}
-              className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg shadow-md transition-all duration-200"
+              className="hidden lg:flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-400"
             >
               <LogOut className="w-4 h-4" />
               Logout
@@ -279,15 +256,18 @@ export default function Navbar() {
             .filter((link) => link.roles.includes(role))
             .map((link) => {
               const Icon = link.icon;
-              const isActive = pathname.startsWith(link.href);
+              const hrefs = navLinks.map((item) => item.href);
+              const isActive = isNavActive(pathname, link.href, hrefs);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-2 py-2 text-sm font-medium transition-colors",
-                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    "mt-1 flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-indigo-600 text-white"
+                      : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
                   )}
                 >
                   <Icon className="w-5 h-5" />
@@ -319,7 +299,7 @@ export default function Navbar() {
             {session && (
               <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-lg shadow-md transition-all duration-200"
+                className="flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-400"
               >
                 <LogOut className="w-4 h-4" />
                 Logout

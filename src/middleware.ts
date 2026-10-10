@@ -12,6 +12,40 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith('/api')) {
+    const role = token?.role;
+    if (role !== 'admin' && role !== 'team') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
+    const isDirectVisit =
+      req.headers.get('sec-fetch-dest') === 'document' ||
+      req.headers.get('sec-fetch-mode') === 'navigate';
+    if (isDirectVisit && !pathname.startsWith('/api/pdf')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
+    if (
+      (pathname.startsWith('/api/users') || pathname.startsWith('/api/dev')) &&
+      role !== 'admin'
+    ) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  }
+
   if (pathname.startsWith('/login')) {
     if (token) {
       const dest =
@@ -53,5 +87,5 @@ export async function middleware(req: NextRequest) {
 
 // Match routes you want middleware to run on
 export const config = {
-  matcher: ['/admin/:path*', '/team/:path*', '/login', '/api/auth/:path*'],
+  matcher: ['/admin/:path*', '/team/:path*', '/login', '/api/:path*'],
 };
