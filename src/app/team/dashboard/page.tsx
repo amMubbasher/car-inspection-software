@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import JobCard from "@/components/JobCard";
+import { useEffect, useRef, useState } from "react";
+import {
+  Calendar,
+  Car,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  RefreshCw,
+  Search,
+  User,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -10,25 +19,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  Filter,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  Wrench,
-} from "lucide-react";
+import JobDetailsPanel, {
+  formatJobDate,
+  JobStatusBadge,
+} from "@/components/JobDetailsPanel";
+import { NoTranslate } from "@/components/ui/NoTranslate";
 import { localDayBound } from "@/lib/localDay";
 import type { Job } from "@/types/job";
-import { containerVariants, titleVariants } from "@/lib/animations";
+
+const PAGE_SIZE = 10;
 
 function getLocalDateString(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function applyClientFilters(jobList: Job[], query: string, status: string) {
+  let result = jobList;
+
+  if (query) {
+    const q = query.toLowerCase();
+    result = result.filter(
+      (job) =>
+        job.carNumber.toLowerCase().includes(q) ||
+        job.customerName.toLowerCase().includes(q) ||
+        (job.customerPhone ?? "").toLowerCase().includes(q) ||
+        (job.engineNumber ?? "").toLowerCase().includes(q)
+    );
+  }
+
+  if (status === "rejected") {
+    result = result.filter((job) => (job.rejectionNote?.length ?? 0) > 0);
+  } else if (status === "completed") {
+    result = result.filter(
+      (job) => job.status === "completed" || job.status === "accepted"
+    );
+  } else if (status) {
+    result = result.filter((job) => job.status === status);
+  }
+
+  return result;
+}
+
+function pageList(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const pages: (number | "ellipsis")[] = [1];
+  if (current > 3) pages.push("ellipsis");
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  if (current < total - 2) pages.push("ellipsis");
+  pages.push(total);
+  return pages;
 }
 
 export default function TeamDashboard() {
@@ -44,74 +88,44 @@ export default function TeamDashboard() {
   const [endDate, setEndDate] = useState(today);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const fetchRequestId = useRef(0);
 
-  const applyClientFilters = (
-    jobList: Job[],
-    query: string,
-    status: string
-  ) => {
-    let result = jobList;
-
-    if (query) {
-      const lower = query.toLowerCase();
-      result = result.filter(
-        (job) =>
-          job.carNumber.toLowerCase().includes(lower) ||
-          job.customerName.toLowerCase().includes(lower)
-      );
-    }
-
-    if (status) {
-      if (status === "rejected") {
-        result = result.filter((job) => job.rejectionNote?.length);
-      } else if (status === "completed") {
-        result = result.filter(
-          (job) => job.status === "completed" || job.status === "accepted"
-        );
-      } else {
-        result = result.filter((job) => job.status === status);
-      }
-    }
-
-    return result;
-  };
-
-  const fetchJobs = async (currentPage = page) => {
+  const fetchJobs = async (currentPage = page, query = searchQuery, status = statusFilter) => {
+    const requestId = ++fetchRequestId.current;
+    setIsRefreshing(true);
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      limit: String(PAGE_SIZE),
+      ...(startDate && { startDate: localDayBound(startDate, "start") }),
+      ...(endDate && { endDate: localDayBound(endDate, "end") }),
+    });
     try {
-      setIsRefreshing(true);
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "10",
-        ...(startDate && { startDate: localDayBound(startDate, "start") }),
-        ...(endDate && { endDate: localDayBound(endDate, "end") }),
-      });
-      const res = await fetch(`/api/jobs?${params}`);
+      const res = await fetch(`/api/jobs?${params}`, { cache: "no-store" });
       const data = await res.json();
+      if (requestId !== fetchRequestId.current) return;
+      if (!res.ok || !Array.isArray(data.jobs)) return;
 
-      if (!res.ok) {
-        throw new Error(data.details || data.error || "Failed to fetch jobs");
-      }
-
-      const fetchedJobs: Job[] = data.jobs ?? [];
+      const fetchedJobs: Job[] = data.jobs;
       setJobs(fetchedJobs);
-      setFiltered(applyClientFilters(fetchedJobs, searchQuery, statusFilter));
+      setFiltered(applyClientFilters(fetchedJobs, query, status));
       setTotal(data.pagination?.total ?? fetchedJobs.length);
       setTotalPages(data.pagination?.totalPages ?? 1);
     } catch (error) {
       console.error("Failed to fetch jobs:", error);
-      setJobs([]);
-      setFiltered([]);
-      setTotal(0);
-      setTotalPages(1);
     } finally {
-      setIsRefreshing(false);
-      setIsInitialLoad(false);
+      if (requestId === fetchRequestId.current) {
+        setIsRefreshing(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchJobs(1);
     setPage(1);
+    // Dates are server filters. Search and status are reapplied inside fetchJobs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate]);
 
   const handleSearch = (query: string) => {
@@ -125,182 +139,240 @@ export default function TeamDashboard() {
     setFiltered(applyClientFilters(jobs, searchQuery, value));
   };
 
+  const selected = jobs.find((job) => job._id === selectedId) ?? null;
+  const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = (page - 1) * PAGE_SIZE + filtered.length;
+
+  const goToPage = (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+    setPage(nextPage);
+    fetchJobs(nextPage);
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={containerVariants}
-        className="space-y-6"
-      >
-        <motion.div
-          variants={titleVariants}
-          className="flex flex-col md:flex-row justify-between gap-4"
-        >
-          <div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-              All Jobs
-            </h2>
-            <p className="text-muted-foreground">
-              Browse, filter, and manage your assigned tasks
-            </p>
-          </div>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => fetchJobs(page)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </motion.button>
-        </motion.div>
-
-        <motion.div
-          variants={titleVariants}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 pb-2 gap-4"
-        >
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-            />
-          </div>
-
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-            />
-          </div>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by car or customer..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-            />
-          </div>
-
-          <Select
-            value={statusFilter || "all"}
-            onValueChange={(value) => handleStatus(value)}
-          >
-            <SelectTrigger className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <SelectValue placeholder="Filter by status" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80">
-              <SelectItem value="all">All Jobs</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </motion.div>
-
-        {isInitialLoad ? (
-          <motion.div
-            variants={titleVariants}
-            className="flex flex-col items-center justify-center py-12 gap-4"
-          >
-            <div className="w-24 h-24 bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/30 dark:to-blue-900/30 rounded-full flex items-center justify-center">
-              <RefreshCw className="w-10 h-10 text-green-500 dark:text-green-400 animate-spin" />
+    <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">All Jobs</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Manage and monitor all service requests
+              </p>
             </div>
-            <h3 className="text-xl font-semibold">Loading jobs...</h3>
-          </motion.div>
-        ) : filtered.length === 0 ? (
-          <motion.div
-            variants={titleVariants}
-            className="flex flex-col items-center justify-center py-12 gap-4 text-center"
-          >
-            <div className="w-24 h-24 bg-gradient-to-r from-green-100 to-blue-100 dark:from-green-900/30 dark:to-blue-900/30 rounded-full flex items-center justify-center">
-              <Wrench className="w-10 h-10 text-green-500 dark:text-green-400" />
-            </div>
-            <h3 className="text-xl font-semibold">No jobs found</h3>
-            <p className="text-muted-foreground max-w-md">
-              Try adjusting your search or filter to find what you are looking
-              for
-            </p>
-          </motion.div>
-        ) : (
-          <>
-            <motion.div
-              variants={containerVariants}
-              className="grid grid-cols-1 gap-4"
+            <button
+              type="button"
+              onClick={() => fetchJobs(page)}
+              className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
             >
-              <AnimatePresence>
-                {filtered.map((job) => (
-                  <JobCard
-                    key={job._id}
-                    job={job}
-                    refreshJobs={() => fetchJobs(page)}
-                  />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
 
-            {totalPages > 1 && (
-              <motion.div
-                variants={titleVariants}
-                className="flex items-center justify-between border-t pt-4"
-              >
-                <p className="text-sm text-muted-foreground">
-                  Showing {filtered.length} of {total} jobs
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-800 lg:flex-row lg:items-center">
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-white pl-10 dark:bg-gray-900 lg:w-[150px]"
+                />
+              </div>
+              <span className="hidden text-gray-300 lg:inline">-</span>
+              <div className="relative">
+                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full bg-white pl-10 dark:bg-gray-900 lg:w-[150px]"
+                />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search by car number, inspector or chassis number..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="bg-white pl-10 dark:bg-gray-900"
+                />
+              </div>
+              <Select value={statusFilter || "all"} onValueChange={handleStatus}>
+                <SelectTrigger className="w-full bg-white dark:bg-gray-900 lg:w-[180px]">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                    <SelectValue placeholder="Filter by status" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Jobs</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isInitialLoad ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
+                <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
+                <p className="font-medium">Loading jobs...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <Search className="h-8 w-8 text-indigo-500" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No jobs found</h3>
+                <p className="max-w-md text-sm text-gray-500">
+                  Try adjusting your search or filter to find what you are looking for
                 </p>
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      const newPage = page - 1;
-                      setPage(newPage);
-                      fetchJobs(newPage);
-                    }}
-                    disabled={page === 1}
-                    className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Previous
-                  </motion.button>
-                  <span className="text-sm px-4">
-                    Page {page} of {totalPages}
-                  </span>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      const newPage = page + 1;
-                      setPage(newPage);
-                      fetchJobs(newPage);
-                    }}
-                    disabled={page === totalPages}
-                    className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </motion.button>
+              </div>
+            ) : (
+              <>
+                <div className="relative overflow-x-auto">
+                  {isRefreshing && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-gray-900/70">
+                      <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+                    </div>
+                  )}
+                  <table className="w-full min-w-[760px] text-left">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-400 dark:border-gray-800">
+                        <th className="px-4 py-3 font-medium">Car Number</th>
+                        <th className="px-4 py-3 font-medium">Inspector</th>
+                        <th className="px-4 py-3 font-medium">Inspection Type</th>
+                        <th className="px-4 py-3 font-medium">Date & Time</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="w-10 px-4 py-3" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((job) => {
+                        const when = formatJobDate(job.createdAt);
+                        const isSelected = job._id === selectedId;
+                        return (
+                          <tr
+                            key={job._id}
+                            onClick={() => setSelectedId(job._id)}
+                            className={`cursor-pointer border-b border-gray-50 transition-colors last:border-0 dark:border-gray-800/60 ${
+                              isSelected
+                                ? "bg-indigo-50/80 dark:bg-indigo-500/10"
+                                : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                  <Car className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0">
+                                  <NoTranslate as="p" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                    {job.carNumber}
+                                  </NoTranslate>
+                                  {job.customerPhone && (
+                                    <NoTranslate as="p" className="truncate text-xs text-gray-400">
+                                      {job.customerPhone}
+                                    </NoTranslate>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                  <User className="h-4 w-4" />
+                                </span>
+                                <NoTranslate as="p" className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                                  {job.customerName}
+                                </NoTranslate>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                              {job.inspectionType || "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-sm text-gray-700 dark:text-gray-200">{when.date}</p>
+                              <p className="text-xs text-gray-400">{when.time}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <JobStatusBadge status={job.status} />
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              <ChevronRight className="h-4 w-4" />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </motion.div>
+
+                <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row dark:border-gray-800">
+                  <p className="text-sm text-gray-500">
+                    Showing {rangeStart} to {rangeEnd} of {total} jobs
+                  </p>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => goToPage(page - 1)}
+                        disabled={page === 1 || isRefreshing}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      {pageList(page, totalPages).map((item, index) =>
+                        item === "ellipsis" ? (
+                          <span key={`ellipsis-${index}`} className="px-1 text-sm text-gray-400">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => goToPage(item)}
+                            disabled={isRefreshing}
+                            className={`h-8 min-w-8 rounded-lg px-2 text-sm disabled:opacity-40 ${
+                              item === page
+                                ? "bg-indigo-600 text-white"
+                                : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => goToPage(page + 1)}
+                        disabled={page === totalPages || isRefreshing}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-40 dark:hover:bg-gray-800"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
-          </>
+          </div>
+        </div>
+
+        {selected && (
+          <JobDetailsPanel
+            key={selected._id}
+            job={selected}
+            onClose={() => setSelectedId(null)}
+            refreshJobs={() => fetchJobs(page)}
+          />
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }
