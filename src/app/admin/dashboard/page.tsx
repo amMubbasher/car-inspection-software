@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Calendar,
   Car,
   ChevronLeft,
   ChevronRight,
@@ -10,7 +9,6 @@ import {
   RefreshCw,
   Search,
   User,
-  UserPlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateRangeField } from "@/components/DateRangeField";
+import { UserAutocomplete } from "@/components/UserAutocomplete";
 import JobDetailsPanel, {
   formatJobDate,
   JobStatusBadge,
@@ -183,37 +183,26 @@ export default function AdminDashboard() {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-800 lg:flex-row lg:items-center">
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full bg-white pl-10 dark:bg-gray-900 lg:w-[150px]"
-                />
-              </div>
-              <span className="hidden text-gray-300 lg:inline">-</span>
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full bg-white pl-10 dark:bg-gray-900 lg:w-[150px]"
-                />
-              </div>
-              <div className="relative min-w-0 flex-1">
+            <div className="flex flex-col gap-2 border-b border-gray-100 p-3 dark:border-gray-800 sm:p-4 lg:flex-row lg:items-center lg:gap-3">
+              <DateRangeField
+                start={startDate}
+                end={endDate}
+                onChange={(nextStart, nextEnd) => {
+                  setStartDate(nextStart);
+                  setEndDate(nextEnd);
+                }}
+              />
+              <div className="relative min-w-0 lg:flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Search by car number, inspector or chassis number..."
+                  placeholder="Search car, inspector or chassis"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="bg-white pl-10 dark:bg-gray-900"
+                  className="bg-white pl-10 text-sm dark:bg-gray-900"
                 />
               </div>
               <Select value={statusFilter || "all"} onValueChange={handleStatus}>
-                <SelectTrigger className="w-full bg-white dark:bg-gray-900 lg:w-[180px]">
+                <SelectTrigger className="w-full bg-white text-sm dark:bg-gray-900 lg:w-[180px]">
                   <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-gray-400" />
                     <SelectValue placeholder="Filter by status" />
@@ -228,25 +217,7 @@ export default function AdminDashboard() {
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              <Select
-                value={createdBy || "all"}
-                onValueChange={(value) => setCreatedBy(value === "all" ? "" : value)}
-              >
-                <SelectTrigger className="w-full bg-white dark:bg-gray-900 lg:w-[200px]">
-                  <div className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4 text-gray-400" />
-                    <SelectValue placeholder="Filter by created by" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user._id} value={user._id}>
-                      {user.name || user.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <UserAutocomplete users={users} value={createdBy} onChange={setCreatedBy} />
             </div>
 
             {isInitialLoad ? (
@@ -264,12 +235,56 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <>
-                <div className="relative overflow-x-auto">
+                <div className="relative">
                   {isRefreshing && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-gray-900/70">
                       <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
                     </div>
                   )}
+                  <ul className="divide-y divide-gray-100 dark:divide-gray-800 lg:hidden">
+                    {filtered.map((job) => {
+                      const when = formatJobDate(job.createdAt);
+                      const isSelected = job._id === selectedId;
+                      return (
+                        <li key={job._id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(job._id)}
+                            className={`flex w-full items-start gap-3 px-4 py-3 text-left ${
+                              isSelected ? "bg-indigo-50/80 dark:bg-indigo-500/10" : ""
+                            }`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              <Car className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-start justify-between gap-2">
+                                <NoTranslate as="span" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                  {job.carNumber}
+                                </NoTranslate>
+                                <JobStatusBadge status={job.status} />
+                              </span>
+                              {job.customerPhone && (
+                                <NoTranslate as="span" className="mt-0.5 block truncate text-xs text-gray-400">
+                                  {job.customerPhone}
+                                </NoTranslate>
+                              )}
+                              <span className="mt-1 block truncate text-sm text-gray-600 dark:text-gray-300">
+                                {job.customerName}
+                              </span>
+                              <span className="mt-0.5 block truncate text-xs text-gray-400">
+                                {job.inspectionType || "-"}
+                                {when.date ? ` · ${when.date}` : ""}
+                                {when.time ? ` ${when.time}` : ""}
+                              </span>
+                            </span>
+                            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-gray-300" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-[760px] text-left">
                     <thead>
                       <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-400 dark:border-gray-800">
@@ -340,6 +355,7 @@ export default function AdminDashboard() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
 
                 <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row dark:border-gray-800">

@@ -83,7 +83,6 @@ export function formatJobDate(dateString?: string) {
 
 type FormState = {
   carNumber: string;
-  customerName: string;
   customerPhone: string;
   engineNumber: string;
   inspectionType: InspectionType | "";
@@ -153,7 +152,6 @@ export default function JobDetailsPanel({
   const prevInspectionTypeRef = useRef<InspectionType | "">("");
   const [formData, setFormData] = useState<FormState>({
     carNumber: job.carNumber || "",
-    customerName: job.customerName || "",
     customerPhone: job.customerPhone || "",
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
@@ -173,7 +171,6 @@ export default function JobDetailsPanel({
     const mergedTabs = tabsForType(job.inspectionType || "", job.inspectionTabs || []);
     setFormData({
       carNumber: job.carNumber || "",
-      customerName: job.customerName || "",
       customerPhone: job.customerPhone || "",
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
@@ -197,8 +194,8 @@ export default function JobDetailsPanel({
   }, [formData.inspectionType, isDialogOpen]);
 
   const handleUpdateAndStart = async () => {
-    if (!formData.carNumber || !formData.customerName || !formData.inspectionType) {
-      alert("Please fill in all required fields (Car Number, Customer Name, and Inspection Type)");
+    if (!formData.carNumber || !formData.inspectionType) {
+      alert("Please fill in all required fields (Car Number and Inspection Type)");
       return;
     }
 
@@ -209,7 +206,6 @@ export default function JobDetailsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carNumber: formData.carNumber,
-          customerName: formData.customerName,
           customerPhone: formData.customerPhone,
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
@@ -263,8 +259,14 @@ export default function JobDetailsPanel({
 
   return (
     <>
-      <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:w-[380px]">
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5 dark:border-gray-800">
+      <button
+        type="button"
+        className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        aria-label="Close job details"
+        onClick={onClose}
+      />
+      <aside className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-white dark:bg-gray-900 lg:static lg:inset-auto lg:z-auto lg:w-[380px] lg:shrink-0 lg:rounded-2xl lg:border lg:border-gray-200 lg:shadow-sm lg:dark:border-gray-800">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex min-w-0 items-start gap-3">
             <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
               <Car className="h-4 w-4" />
@@ -440,17 +442,6 @@ export default function JobDetailsPanel({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="panel-customerName">Customer Name *</Label>
-                  <Input
-                    id="panel-customerName"
-                    className="notranslate"
-                    translate="no"
-                    value={formData.customerName}
-                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    placeholder="Enter customer name"
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="panel-customerPhone">Customer Phone</Label>
                   <Input
                     id="panel-customerPhone"
@@ -463,14 +454,14 @@ export default function JobDetailsPanel({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="panel-engineNumber">Engine Number</Label>
+                  <Label htmlFor="panel-engineNumber">Chassis Number</Label>
                   <Input
                     id="panel-engineNumber"
                     className="notranslate"
                     translate="no"
                     value={formData.engineNumber}
                     onChange={(e) => setFormData({ ...formData, engineNumber: e.target.value })}
-                    placeholder="Enter engine number"
+                    placeholder="Chassis Number"
                   />
                 </div>
                 <div className="space-y-2">
@@ -488,22 +479,22 @@ export default function JobDetailsPanel({
                   <Label htmlFor="panel-price">Price</Label>
                   <Input
                     id="panel-price"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
                     className="notranslate"
                     translate="no"
-                    value={formData.price ?? 0}
-                    onChange={(e) =>
+                    value={formData.price ? String(formData.price) : ""}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
                       setFormData({
                         ...formData,
-                        price: Math.max(0, Number(e.target.value) || 0),
-                      })
-                    }
+                        price: raw === "" ? 0 : Number(raw),
+                      });
+                    }}
                     placeholder="0"
                   />
                 </div>
-                <div className="space-y-2 sm:col-span-2">
+                <div className="space-y-2">
                   <Label htmlFor="panel-inspectionType">Inspection Type *</Label>
                   <select
                     id="panel-inspectionType"

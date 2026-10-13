@@ -55,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative -mt-20 flex min-h-screen bg-gray-50 md:-mt-16 dark:bg-gray-950">
+    <div className="relative -mt-16 flex min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="absolute right-4 top-4 z-20 md:right-6 md:top-6">
         <ThemeToggle />
       </div>

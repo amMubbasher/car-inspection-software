@@ -95,7 +95,10 @@ export async function GET(req: Request) {
     if (startDate || endDate) {
       const createdAt: Record<string, Date> = {};
       const start = parseFilterDate(startDate, false);
-      const end = parseFilterDate(endDate, true);
+      let end = parseFilterDate(endDate, true);
+      if (start && end && end.getTime() <= start.getTime()) {
+        end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+      }
       if (start) createdAt.$gte = start;
       if (end) createdAt.$lte = end;
       if (Object.keys(createdAt).length > 0) query.createdAt = createdAt;

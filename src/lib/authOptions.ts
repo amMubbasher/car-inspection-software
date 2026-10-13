@@ -32,6 +32,7 @@ export const authOptions = {
           return {
             _id: user._id.toString(),
             email: user.email,
+            name: user.name?.trim() || "",
             role: user.role,
           };
         } catch (error) {
@@ -49,6 +50,8 @@ export const authOptions = {
       if (user) {
         token._id = user._id;
         token.role = user.role;
+        token.email = user.email;
+        token.name = user.name || "";
       }
       return token;
     },
@@ -57,6 +60,8 @@ export const authOptions = {
       if (token) {
         session.user._id = token._id;
         session.user.role = token.role;
+        if (token.email) session.user.email = token.email;
+        session.user.name = token.name || "";
       }
       return session;
     },

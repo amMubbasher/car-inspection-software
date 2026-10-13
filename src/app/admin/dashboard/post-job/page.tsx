@@ -223,17 +223,17 @@ export default function PostJobPage() {
                 Price
               </label>
               <input
-                type="number"
-                min={0}
-                step={1}
+                type="text"
+                inputMode="numeric"
                 placeholder="0"
-                value={form.price ?? 0}
-                onChange={(e) =>
+                value={form.price ? String(form.price) : ""}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
                   setForm({
                     ...form,
-                    price: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
+                    price: raw === "" ? 0 : Number(raw),
+                  });
+                }}
                 className={fieldClass}
                 translate="no"
               />

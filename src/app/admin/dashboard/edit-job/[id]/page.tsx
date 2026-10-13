@@ -123,7 +123,6 @@ export default function EditJobPage() {
     if (!form) return;
     const payload = {
       carNumber: form.carNumber,
-      customerName: form.customerName,
       customerPhone: form.customerPhone ?? "",
       engineNumber: form.engineNumber,
       odometer: form.odometer,
@@ -212,17 +211,6 @@ export default function EditJobPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
-            <input
-              type="text"
-              placeholder="Customer Name"
-              value={form.customerName}
-              onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-              className={fieldClass}
-              translate="no"
-            />
-          </div>
-          <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Phone</label>
             <input
               type="tel"
@@ -234,10 +222,10 @@ export default function EditJobPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Engine Number</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Chassis Number</label>
             <input
               type="text"
-              placeholder="Engine Number"
+              placeholder="Chassis Number"
               value={form.engineNumber || ""}
               onChange={(e) => setForm({ ...form, engineNumber: e.target.value })}
               className={fieldClass}
@@ -258,17 +246,17 @@ export default function EditJobPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
             <input
-              type="number"
-              min={0}
-              step={1}
+              type="text"
+              inputMode="numeric"
               placeholder="0"
-              value={form.price ?? 0}
-              onChange={(e) =>
+              value={form.price ? String(form.price) : ""}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
                 setForm({
                   ...form,
-                  price: Math.max(0, Number(e.target.value) || 0),
-                })
-              }
+                  price: raw === "" ? 0 : Number(raw),
+                });
+              }}
               className={fieldClass}
               translate="no"
             />

@@ -301,14 +301,14 @@ export default function UsersPage() {
     <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-4 lg:flex-row lg:items-start">
         <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Users</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Create, edit, and manage team accounts
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => fetchUsers(page)}
@@ -376,12 +376,45 @@ export default function UsersPage() {
               </div>
             ) : (
               <>
-                <div className="relative overflow-x-auto">
+                <div className="relative">
                   {isRefreshing && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-gray-900/70">
                       <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
                     </div>
                   )}
+                  <ul className="divide-y divide-gray-100 dark:divide-gray-800 lg:hidden">
+                    {users.map((user) => {
+                      const isSelected = user._id === selectedId;
+                      return (
+                        <li key={user._id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedId(user._id)}
+                            className={`flex w-full items-center gap-3 px-4 py-3 text-left ${
+                              isSelected ? "bg-indigo-50/80 dark:bg-indigo-500/10" : ""
+                            }`}
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              <User className="h-4 w-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center justify-between gap-2">
+                                <NoTranslate as="span" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                  {user.name || "—"}
+                                </NoTranslate>
+                                <RoleBadge role={user.role} />
+                              </span>
+                              <NoTranslate as="span" className="mt-0.5 block truncate text-xs text-gray-400">
+                                {user.email}
+                              </NoTranslate>
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-[640px] text-left">
                     <thead>
                       <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-400 dark:border-gray-800">
@@ -430,6 +463,7 @@ export default function UsersPage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
 
                 <div className="flex flex-col items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row dark:border-gray-800">
@@ -486,8 +520,15 @@ export default function UsersPage() {
         </div>
 
         {selected && (
-          <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 lg:w-[380px]">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5 dark:border-gray-800">
+          <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            aria-label="Close user details"
+            onClick={() => setSelectedId(null)}
+          />
+          <aside className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-white dark:bg-gray-900 lg:static lg:inset-auto lg:z-auto lg:w-[380px] lg:shrink-0 lg:rounded-2xl lg:border lg:border-gray-200 lg:shadow-sm lg:dark:border-gray-800">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                   <User className="h-4 w-4" />
@@ -542,6 +583,7 @@ export default function UsersPage() {
               </div>
             </div>
           </aside>
+          </>
         )}
       </div>
 

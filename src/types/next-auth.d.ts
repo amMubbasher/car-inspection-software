@@ -6,6 +6,7 @@ declare module "next-auth" {
     user: {
       _id: string; //  renamed from id to _id for consistency
       email: string;
+      name?: string;
       role: "admin" | "team";
     };
   }
@@ -13,6 +14,7 @@ declare module "next-auth" {
   interface User {
     _id: string;
     email: string;
+    name?: string;
     role: "admin" | "team";
   }
 }
@@ -21,6 +23,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     _id: string;
     email: string;
+    name?: string;
     role: "admin" | "team";
   }
 }

@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <ThemeProvider>
               <GoogleTranslateProvider>
                 <Navbar />
-                <div className="mt-20 md:mt-16">{children}</div>
+                <div className="mt-16">{children}</div>
               </GoogleTranslateProvider>
             </ThemeProvider>
           </ReduxProvider>

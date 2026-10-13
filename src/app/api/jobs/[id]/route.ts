@@ -48,9 +48,8 @@ export async function PATCH(req, { params }) {
       updatePayload.status = "accepted";
       updatePayload.rejectionNote = "";
     }
-    // 2. Full job edit (carNumber, customerName, inspectionTabs, etc.)
+    // Same fields as job creation. customerName stays the inspector set when the job was created.
     if (body.carNumber) updatePayload.carNumber = body.carNumber;
-    if (body.customerName) updatePayload.customerName = body.customerName;
     if (body.customerPhone !== undefined) updatePayload.customerPhone = String(body.customerPhone).trim();
     if (body.engineNumber !== undefined) updatePayload.engineNumber = body.engineNumber;
     if (body.odometer !== undefined) updatePayload.odometer = body.odometer;

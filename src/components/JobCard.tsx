@@ -35,7 +35,6 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
   const prevInspectionTypeRef = useRef<InspectionType | undefined>(undefined);
   const [formData, setFormData] = useState({
     carNumber: job.carNumber || "",
-    customerName: job.customerName || "",
     customerPhone: job.customerPhone || "",
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
@@ -104,8 +103,7 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
     // Reset form data to current job data
     setFormData({
       carNumber: job.carNumber || "",
-      customerName: job.customerName || "",
-    customerPhone: job.customerPhone || "",
+      customerPhone: job.customerPhone || "",
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
       odometer: job.odometer || 0,
@@ -120,8 +118,8 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
   // Handle update and start (combined action)
   const handleUpdateAndStart = async () => {
     // Validate fields
-    if (!formData.carNumber || !formData.customerName || !formData.inspectionType) {
-      alert("Please fill in all required fields (Car Number, Customer Name, and Inspection Type)");
+    if (!formData.carNumber || !formData.inspectionType) {
+      alert("Please fill in all required fields (Car Number and Inspection Type)");
       return;
     }
     
@@ -134,7 +132,6 @@ export default function JobCard({ job, refreshJobs }: { job: unknown; refreshJob
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           carNumber: formData.carNumber,
-          customerName: formData.customerName,
           customerPhone: formData.customerPhone,
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
@@ -387,7 +384,7 @@ const handleEdit = () => {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-muted-foreground" />
               <div>
-                <p className="text-muted-foreground">Engine</p>
+                <p className="text-muted-foreground">Chassis</p>
                 <p className="text-card-foreground font-medium">
                   <NoTranslate>{job.engineNumber}</NoTranslate>
                 </p>
@@ -599,17 +596,6 @@ const handleEdit = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="customerName">Customer Name *</Label>
-                    <Input
-                      id="customerName"
-                      className="notranslate"
-                      translate="no"
-                      value={formData.customerName}
-                      onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                      placeholder="Enter customer name"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="customerPhone">Customer Phone</Label>
                     <Input
                       id="customerPhone"
@@ -622,14 +608,14 @@ const handleEdit = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="engineNumber">Engine Number</Label>
+                    <Label htmlFor="engineNumber">Chassis Number</Label>
                     <Input
                       id="engineNumber"
                       className="notranslate"
                       translate="no"
                       value={formData.engineNumber}
                       onChange={(e) => setFormData({ ...formData, engineNumber: e.target.value })}
-                      placeholder="Enter engine number"
+                      placeholder="Chassis Number"
                     />
                   </div>
                   <div className="space-y-2">
@@ -647,22 +633,22 @@ const handleEdit = () => {
                     <Label htmlFor="price">Price</Label>
                     <Input
                       id="price"
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
                       className="notranslate"
                       translate="no"
-                      value={formData.price ?? 0}
-                      onChange={(e) =>
+                      value={formData.price ? String(formData.price) : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
                         setFormData({
                           ...formData,
-                          price: Math.max(0, Number(e.target.value) || 0),
-                        })
-                      }
+                          price: raw === "" ? 0 : Number(raw),
+                        });
+                      }}
                       placeholder="0"
                     />
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="inspectionType">Inspection Type *</Label>
                     <select
                       id="inspectionType"
