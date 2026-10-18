@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateRangeField } from "@/components/DateRangeField";
+import { ExportJobsReportDialog } from "@/components/ExportJobsReportDialog";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
 import JobDetailsPanel, {
   formatJobDate,
@@ -93,6 +94,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
@@ -172,14 +174,23 @@ export default function AdminDashboard() {
                 Manage and monitor all service requests
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => fetchJobs(page)}
-              className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500"
+              >
+                Export Report
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchJobs(page)}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -420,6 +431,12 @@ export default function AdminDashboard() {
           />
         )}
       </div>
+
+      <ExportJobsReportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        users={users}
+      />
     </div>
   );
 }

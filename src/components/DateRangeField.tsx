@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { createPortal } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,12 +54,14 @@ function MonthGrid({
   end,
   today,
   onPick,
+  className,
 }: {
   month: Date;
   start: string;
   end: string;
   today: string;
   onPick: (value: string) => void;
+  className?: string;
 }) {
   const { leading, count } = daysInMonth(month);
   const cells = [
@@ -59,13 +70,13 @@ function MonthGrid({
   ];
 
   return (
-    <div className="w-[252px]">
-      <p className="mb-2 text-center text-sm font-semibold text-gray-900 dark:text-white">
+    <div className={cn("w-full max-w-[240px]", className)}>
+      <p className="mb-1.5 text-center text-xs font-semibold text-gray-900 sm:text-sm dark:text-white">
         {monthLabel(month)}
       </p>
-      <div className="grid grid-cols-7 gap-y-1 text-center text-xs text-gray-400">
+      <div className="grid grid-cols-7 text-center text-[11px] text-gray-400">
         {WEEKDAYS.map((day) => (
-          <span key={day} className="py-1">
+          <span key={day} className="py-0.5">
             {day}
           </span>
         ))}
@@ -79,12 +90,22 @@ function MonthGrid({
             <button
               key={value}
               type="button"
-              onClick={() => onPick(value)}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onPick(value);
+              }}
               className={cn(
-                "mx-auto flex h-8 w-8 items-center justify-center rounded-full text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800",
+                "mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs text-gray-800 hover:bg-gray-100 sm:h-8 sm:w-8 dark:text-gray-100 dark:hover:bg-gray-800",
                 isToday && !selected && "ring-1 ring-indigo-400",
-                inRange && "rounded-none bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-200",
-                selected && "bg-indigo-600 text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:text-white"
+                inRange &&
+                  "rounded-none bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-200",
+                selected &&
+                  "bg-indigo-600 text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:text-white"
               )}
             >
               {day}
@@ -96,23 +117,116 @@ function MonthGrid({
   );
 }
 
+function CalendarPanel({
+  viewMonth,
+  setViewMonth,
+  draftStart,
+  draftEnd,
+  todayKey,
+  onPick,
+  onSelectToday,
+  panelRef,
+  style,
+  className,
+}: {
+  viewMonth: Date;
+  setViewMonth: Dispatch<SetStateAction<Date>>;
+  draftStart: string;
+  draftEnd: string;
+  todayKey: string;
+  onPick: (value: string) => void;
+  onSelectToday: () => void;
+  panelRef?: RefObject<HTMLDivElement | null>;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  return (
+    <div
+      ref={panelRef}
+      data-date-range-panel=""
+      style={style}
+      className={className}
+      onMouseDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setViewMonth((month) => addMonths(month, -1))}
+          className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="flex min-w-0 flex-col items-center gap-1">
+          <p className="text-center text-[11px] leading-tight text-gray-500 sm:text-xs">
+            {draftStart && !draftEnd
+              ? "Select an end date"
+              : "Start date, then end date"}
+          </p>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onSelectToday}
+            className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-indigo-500"
+          >
+            Today
+          </button>
+        </div>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setViewMonth((month) => addMonths(month, 1))}
+          className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Next month"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-start sm:gap-3">
+        <MonthGrid
+          month={viewMonth}
+          start={draftStart}
+          end={draftEnd}
+          today={todayKey}
+          onPick={onPick}
+        />
+        <MonthGrid
+          className="hidden sm:block"
+          month={addMonths(viewMonth, 1)}
+          start={draftStart}
+          end={draftEnd}
+          today={todayKey}
+          onPick={onPick}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function DateRangeField({
   start,
   end,
   onChange,
+  embedded = false,
 }: {
   start: string;
   end: string;
   onChange: (start: string, end: string) => void;
+  /** Always show the two-month calendar (for use inside dialogs). */
+  embedded?: boolean;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const ignoreOutsideRef = useRef(false);
   const labelId = useId();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => addMonths(parseDate(start), 0));
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
+  const selectingRef = useRef(false);
   const draftRef = useRef({ start, end });
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const todayKey = toKey(new Date());
@@ -120,16 +234,26 @@ export function DateRangeField({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!embedded || selectingRef.current) return;
+    draftRef.current = { start, end };
+    setDraftStart(start);
+    setDraftEnd(end);
+    const startDate = parseDate(start);
+    setViewMonth(new Date(startDate.getFullYear(), startDate.getMonth(), 1));
+  }, [embedded, start, end]);
+
+  useEffect(() => {
+    if (!open || embedded) return;
 
     const place = () => {
       const rect = buttonRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const width = Math.min(560, window.innerWidth - 16);
-      let left = rect.left;
+      const isNarrow = window.innerWidth < 640;
+      const width = Math.min(isNarrow ? 280 : 520, window.innerWidth - 16);
+      let left = isNarrow ? (window.innerWidth - width) / 2 : rect.left;
       if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
       if (left < 8) left = 8;
-      const panelHeight = panelRef.current?.offsetHeight ?? 360;
+      const panelHeight = panelRef.current?.offsetHeight ?? 320;
       let top = rect.bottom + 8;
       if (top + panelHeight > window.innerHeight - 8) {
         top = Math.max(8, rect.top - panelHeight - 8);
@@ -138,46 +262,73 @@ export function DateRangeField({
     };
 
     place();
+    const frame = window.requestAnimationFrame(place);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [open]);
+  }, [open, embedded]);
 
   useEffect(() => {
-    if (!open) return;
-    const onPointer = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+    if (!open || embedded) return;
+
+    const onOutside = (event: Event) => {
+      if (ignoreOutsideRef.current) return;
+      const target = event.target as Element | null;
+      if (
+        buttonRef.current?.contains(target) ||
+        panelRef.current?.contains(target) ||
+        target?.closest?.("[data-date-range-panel]")
+      ) {
+        return;
+      }
       setOpen(false);
+      selectingRef.current = false;
     };
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        selectingRef.current = false;
+      }
     };
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
+
+    // Attach after the opening click finishes so that same click cannot close it.
+    const timer = window.setTimeout(() => {
+      document.addEventListener("mousedown", onOutside);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+
     return () => {
-      document.removeEventListener("mousedown", onPointer);
+      window.clearTimeout(timer);
+      document.removeEventListener("mousedown", onOutside);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, embedded]);
 
   const openPicker = () => {
+    ignoreOutsideRef.current = true;
     const startDate = parseDate(start);
     setViewMonth(new Date(startDate.getFullYear(), startDate.getMonth(), 1));
     draftRef.current = { start, end };
     setDraftStart(start);
     setDraftEnd(end);
+    selectingRef.current = false;
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
-      const width = Math.min(560, window.innerWidth - 16);
-      let left = rect.left;
+      const isNarrow = window.innerWidth < 640;
+      const width = Math.min(isNarrow ? 280 : 520, window.innerWidth - 16);
+      let left = isNarrow ? (window.innerWidth - width) / 2 : rect.left;
       if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
       setPosition({ top: rect.bottom + 8, left: Math.max(8, left) });
     }
     setOpen(true);
+    window.setTimeout(() => {
+      ignoreOutsideRef.current = false;
+    }, 50);
   };
 
   const applyRange = (from: string, to: string) => {
@@ -186,24 +337,36 @@ export function DateRangeField({
     draftRef.current = { start: startValue, end: endValue };
     setDraftStart(startValue);
     setDraftEnd(endValue);
+    selectingRef.current = false;
     onChange(startValue, endValue);
-    setOpen(false);
+    if (!embedded) setOpen(false);
   };
 
   const pickDay = (value: string) => {
-    const { start: currentStart, end: currentEnd } = draftRef.current;
-    if (!currentStart || currentEnd) {
+    if (!selectingRef.current) {
+      selectingRef.current = true;
       draftRef.current = { start: value, end: "" };
       setDraftStart(value);
       setDraftEnd("");
       return;
     }
+
+    const { start: currentStart } = draftRef.current;
+    if (!currentStart) {
+      selectingRef.current = true;
+      draftRef.current = { start: value, end: "" };
+      setDraftStart(value);
+      setDraftEnd("");
+      return;
+    }
+
     if (value < currentStart) {
       draftRef.current = { start: value, end: "" };
       setDraftStart(value);
       setDraftEnd("");
       return;
     }
+
     applyRange(currentStart, value);
   };
 
@@ -213,15 +376,54 @@ export function DateRangeField({
     applyRange(todayKey, todayKey);
   };
 
-  const panelWidth = typeof window === "undefined" ? 560 : Math.min(560, window.innerWidth - 16);
+  const panelWidth =
+    typeof window === "undefined"
+      ? 280
+      : Math.min(window.innerWidth < 640 ? 280 : 520, window.innerWidth - 16);
+
+  if (embedded) {
+    return (
+      <div className="w-full">
+        <p className="mb-2 text-sm text-gray-700 dark:text-gray-300">
+          {formatDisplay(draftStart || start)} –{" "}
+          {draftEnd ? formatDisplay(draftEnd) : draftStart ? "…" : formatDisplay(end)}
+        </p>
+        <CalendarPanel
+          viewMonth={viewMonth}
+          setViewMonth={setViewMonth}
+          draftStart={draftStart}
+          draftEnd={draftEnd}
+          todayKey={todayKey}
+          onPick={pickDay}
+          onSelectToday={selectToday}
+          className="mx-auto w-full max-w-[280px] rounded-xl border border-gray-200 bg-white p-3 sm:max-w-[520px] dark:border-gray-700 dark:bg-gray-900"
+        />
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="relative w-full lg:w-auto">
       <button
         ref={buttonRef}
         id={labelId}
         type="button"
-        onClick={() => (open ? setOpen(false) : openPicker())}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onMouseDown={(event) => {
+          // Keep the opening click from being treated as an outside click.
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (open) {
+            setOpen(false);
+            selectingRef.current = false;
+          } else {
+            openPicker();
+          }
+        }}
         className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-white px-3 text-left text-sm text-gray-900 lg:w-[250px] dark:bg-gray-900 dark:text-white"
       >
         <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
@@ -229,50 +431,23 @@ export function DateRangeField({
           {formatDisplay(start)} – {formatDisplay(end)}
         </span>
       </button>
-      {mounted && open &&
+      {mounted &&
+        open &&
         createPortal(
-          <div
-            ref={panelRef}
-            role="dialog"
-            aria-label="Choose date range"
+          <CalendarPanel
+            panelRef={panelRef}
+            viewMonth={viewMonth}
+            setViewMonth={setViewMonth}
+            draftStart={draftStart}
+            draftEnd={draftEnd}
+            todayKey={todayKey}
+            onPick={pickDay}
+            onSelectToday={selectToday}
             style={{ top: position.top, left: position.left, width: panelWidth }}
-            className="fixed z-50 max-h-[80vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-900"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setViewMonth((month) => addMonths(month, -1))}
-                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <div className="flex flex-col items-center gap-1">
-                <p className="text-xs text-gray-500">Select a start date, then an end date</p>
-                <button
-                  type="button"
-                  onClick={selectToday}
-                  className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-500"
-                >
-                  Today
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewMonth((month) => addMonths(month, 1))}
-                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:items-start">
-              <MonthGrid month={viewMonth} start={draftStart} end={draftEnd} today={todayKey} onPick={pickDay} />
-              <MonthGrid month={addMonths(viewMonth, 1)} start={draftStart} end={draftEnd} today={todayKey} onPick={pickDay} />
-            </div>
-          </div>,
+            className="fixed z-[80] max-h-[min(70vh,420px)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+          />,
           document.body
         )}
-    </>
+    </div>
   );
 }
