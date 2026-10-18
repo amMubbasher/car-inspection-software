@@ -98,7 +98,7 @@ export function UserAutocomplete({
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          placeholder="All Users"
+          placeholder="All Inspectors"
           value={query}
           onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
@@ -135,10 +135,10 @@ export function UserAutocomplete({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose("")}
             >
-              All Users
+              All Inspectors
             </button>
             {matches.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-gray-500">No users found</p>
+              <p className="px-3 py-2 text-sm text-gray-500">No inspectors found</p>
             ) : (
               matches.map((user) => (
                 <button

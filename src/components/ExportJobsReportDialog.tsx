@@ -42,7 +42,7 @@ function downloadExcel(
   end: string
 ) {
   const data = [
-    ["User", "Email", "Jobs Created", "Total Price"],
+    ["Inspector", "Email", "Jobs Created", "Total Price"],
     ...rows.map((row) => [
       row.name || row.email,
       row.email,
@@ -141,7 +141,7 @@ export function ExportJobsReportDialog({
 
   const generateReport = async () => {
     if (selectedIds.length === 0) {
-      setError("Select at least one user.");
+      setError("Select at least one inspector.");
       return;
     }
     setIsLoading(true);
@@ -174,7 +174,7 @@ export function ExportJobsReportDialog({
         <DialogHeader className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <DialogTitle>Export Report</DialogTitle>
           <DialogDescription>
-            Jobs created by each selected user, with job count and total price for the date range.
+            Jobs created by each selected inspector, with job count and total price for the date range.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,7 +194,7 @@ export function ExportJobsReportDialog({
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Users</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Inspectors</p>
             <div className="relative" ref={usersMenuRef}>
               <button
                 type="button"
@@ -204,7 +204,7 @@ export function ExportJobsReportDialog({
               >
                 <Users className="h-4 w-4 shrink-0 text-gray-400" />
                 <span className="min-w-0 flex-1 truncate">
-                  Selected {selectedIds.length}/{users.length} users
+                  Selected {selectedIds.length}/{users.length} inspectors
                 </span>
                 <ChevronDown
                   className={cn(
@@ -232,7 +232,7 @@ export function ExportJobsReportDialog({
                   </div>
                   <div className="max-h-48 overflow-y-auto">
                     {sortedUsers.length === 0 ? (
-                      <p className="px-2 py-3 text-sm text-gray-500">No users available</p>
+                      <p className="px-2 py-3 text-sm text-gray-500">No inspectors available</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-1.5">
                         {sortedUsers.map((user) => {
@@ -316,7 +316,7 @@ export function ExportJobsReportDialog({
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                     <tr>
-                      <th className="px-4 py-3">User</th>
+                      <th className="px-4 py-3">Inspector</th>
                       <th className="px-4 py-3">Jobs created</th>
                       <th className="px-4 py-3 text-right">Total price</th>
                     </tr>
