@@ -1,95 +1,142 @@
 // app/api/jobs/[id]/route.ts
-// @ts-nocheck
 import { connectToDB } from "@/lib/db";
 import { Job } from "@/models/Job";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { Types } from "mongoose";
+import {
+  assertObjectId,
+  audit,
+  AuthError,
+  can,
+  requirePermission,
+  requireUser,
+  routeError,
+} from "@/lib/rbac/server";
+import { jobScope } from "@/lib/rbac/jobs";
+import { jobEditSchema } from "@/lib/validations/jobSchema";
 import { serializeJob } from "@/lib/serializeJob";
-export async function GET(req, { params }) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["admin", "team"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
+type Params = { params: Promise<{ id: string }> };
+
+const REVIEWABLE_STATUSES = ["completed", "accepted", "rejected"];
+
+export async function GET(_req: Request, { params }: Params) {
+  try {
+    const user = await requireUser();
+    const scope = jobScope(user);
     const { id } = await params;
+    assertObjectId(id, "Job");
+
     await connectToDB();
-    const job = await Job.findById(id)
+    const job = await Job.findOne({ _id: id, ...scope })
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
-    return NextResponse.json(serializeJob(job));
+    return NextResponse.json(serializeJob(job), {
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return routeError(error, "Failed to fetch job");
   }
 }
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req: Request, { params }: Params) {
   try {
+    const user = await requireUser();
+    const scope = jobScope(user);
     const { id: jobId } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session || !["admin", "team"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    assertObjectId(jobId, "Job");
+
+    const parsed = jobEditSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Validation failed" },
+        { status: 400 }
+      );
+    }
+    const { status, rejectionNote, ...edits } = parsed.data;
+    const hasEdits = Object.values(edits).some((value) => value !== undefined);
+    const hasReview = status !== undefined || rejectionNote !== undefined;
+
+    if (!hasEdits && !hasReview) {
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+    }
+    if (hasEdits && !can(user, "jobs.edit")) {
+      throw new AuthError(403, "You do not have permission to edit jobs");
+    }
+    if (hasReview && !can(user, "jobs.review")) {
+      throw new AuthError(403, "You do not have permission to review jobs");
     }
 
     await connectToDB();
-    const body = await req.json();
 
-    let updatePayload = {};
+    const updatePayload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(edits)) {
+      if (value !== undefined) updatePayload[key] = value;
+    }
 
-    // 1. Accept / Reject logic (same as before)
-    if (body.status === "rejected") {
-      updatePayload.status = "rejected";
-      updatePayload.rejectionNote = body.rejectionNote || "";
-    } else if (body.status === "accepted") {
-      updatePayload.status = "accepted";
-      updatePayload.rejectionNote = "";
+    const filter: Record<string, unknown> = { _id: jobId, ...scope };
+    if (hasReview) {
+      if (!status) {
+        return NextResponse.json({ error: "Status is required" }, { status: 400 });
+      }
+      filter.status = { $in: REVIEWABLE_STATUSES };
+      updatePayload.status = status;
+      updatePayload.rejectionNote = status === "rejected" ? rejectionNote ?? "" : "";
     }
-    // Same fields as job creation. customerName stays the inspector set when the job was created.
-    if (body.carNumber) updatePayload.carNumber = body.carNumber;
-    if (body.customerPhone !== undefined) updatePayload.customerPhone = String(body.customerPhone).trim();
-    if (body.engineNumber !== undefined) updatePayload.engineNumber = body.engineNumber;
-    if (body.odometer !== undefined) updatePayload.odometer = body.odometer;
-    if (body.inspectionType !== undefined) updatePayload.inspectionType = body.inspectionType;
-    if (body.price !== undefined) {
-      updatePayload.price = Math.max(0, Number(body.price) || 0);
-    }
-    if (body.inspectionTabs) updatePayload.inspectionTabs = body.inspectionTabs;
-    console.log(updatePayload);
-    const updatedJob = await Job.findByIdAndUpdate(jobId, updatePayload, { new: true });
+
+    const updatedJob = await Job.findOneAndUpdate(filter, updatePayload, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updatedJob) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: hasReview ? "Job not found or not ready for review" : "Job not found" },
+        { status: 404 }
+      );
+    }
+
+    if (hasReview) {
+      await audit(user, {
+        action: `job.${status}`,
+        targetType: "job",
+        targetId: new Types.ObjectId(jobId),
+        after: { status, rejectionNote: updatePayload.rejectionNote },
+      });
     }
 
     return NextResponse.json(serializeJob(updatedJob));
   } catch (error) {
-    console.error("PATCH error:", error);
-    return NextResponse.json({ error: "Failed to update job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return routeError(error, "Failed to update job");
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE(_req: Request, { params }: Params) {
   try {
+    const user = await requirePermission("jobs.delete");
+    const scope = jobScope(user);
     const { id: jobId } = await params;
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    assertObjectId(jobId, "Job");
 
     await connectToDB();
 
-    const deletedJob = await Job.findByIdAndDelete(jobId);
+    const deletedJob = await Job.findOneAndDelete({ _id: jobId, ...scope });
     if (!deletedJob) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
+    await audit(user, {
+      action: "job.delete",
+      targetType: "job",
+      targetId: deletedJob._id,
+      before: { jobCount: deletedJob.jobCount, carNumber: deletedJob.carNumber },
+    });
+
     return NextResponse.json({ message: "Job deleted successfully" });
   } catch (error) {
-    console.error("DELETE error:", error);
-    return NextResponse.json({ error: "Failed to delete job", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    return routeError(error, "Failed to delete job");
   }
 }

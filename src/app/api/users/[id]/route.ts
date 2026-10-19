@@ -1,8 +1,27 @@
+import { Types } from 'mongoose';
 import { connectToDB } from '@/lib/db';
 import { User } from '@/models/User';
-import { getAuthSession, isAuthorized } from '@/lib/auth';
-import { apiError } from '@/lib/apiError';
-import { serializeUser } from '@/lib/serializeUser';
+import { Role } from '@/models/Role';
+import {
+  assertObjectId,
+  audit,
+  AuthError,
+  can,
+  requireAnyPermission,
+  requirePermission,
+  routeError,
+} from '@/lib/rbac/server';
+import { assertCanManageUser, assertNotSelf } from '@/lib/rbac/guards';
+import {
+  canAssignRole,
+  countSuperAdmins,
+  loadSafeUser,
+  rolePermissions,
+  toManagedTarget,
+} from '@/lib/rbac/users';
+import { SUPER_ADMIN_ROLE_KEY } from '@/lib/rbac/permissions';
+import { updateUserSchema } from '@/lib/validations/userSchema';
+import { BCRYPT_COST } from '@/lib/authOptions';
 import bcrypt from 'bcryptjs';
 import { NextResponse } from 'next/server';
 
@@ -11,61 +30,104 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await isAuthorized('admin');
-    if (!isAdmin) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-
+    const actor = await requireAnyPermission('users.edit', 'users.assign_roles');
     const { id } = await params;
+    assertObjectId(id, 'User');
     await connectToDB();
-    const body = await req.json();
+
+    const parsed = updateUserSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(
+        { message: parsed.error.issues[0]?.message ?? 'Validation failed' },
+        { status: 400 }
+      );
+    }
+    const body = parsed.data;
+
+    const target = await loadSafeUser(id);
+    if (!target) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
+    }
+    assertCanManageUser(actor, toManagedTarget(target));
 
     const user = await User.findById(id);
     if (!user) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    if (body.name !== undefined) {
-      user.name = String(body.name).trim();
+    const changesProfile =
+      (body.name !== undefined && body.name !== (user.name ?? '')) ||
+      (body.email !== undefined && body.email !== user.email) ||
+      Boolean(body.password);
+    if (changesProfile && !can(actor, 'users.edit')) {
+      throw new AuthError(403, 'You do not have permission to edit users');
     }
 
-    if (body.email !== undefined) {
-      const email = String(body.email).trim().toLowerCase();
-      if (!email) {
-        return NextResponse.json({ message: 'Email is required' }, { status: 400 });
+    const before = { name: user.name, email: user.email, role: target.role?.key ?? null };
+    let revokeSessions = false;
+
+    if (body.name !== undefined) user.name = body.name;
+
+    if (body.email !== undefined && body.email !== user.email) {
+      const existing = await User.findOne({ email: body.email }).select('_id').lean();
+      if (existing) {
+        return NextResponse.json({ message: 'Email already in use' }, { status: 409 });
       }
-      if (email !== user.email) {
-        const existing = await User.findOne({ email });
-        if (existing) {
-          return NextResponse.json({ message: 'Email already in use' }, { status: 409 });
-        }
-        user.email = email;
-      }
+      user.email = body.email;
     }
 
-    if (body.role !== undefined) {
-      if (!['admin', 'team'].includes(body.role)) {
-        return NextResponse.json({ message: 'Invalid role' }, { status: 400 });
+    let newRoleKey: string | null = null;
+    if (body.roleId !== undefined && body.roleId !== target.role?._id) {
+      if (!can(actor, 'users.assign_roles')) {
+        throw new AuthError(403, 'You do not have permission to assign roles');
       }
-      user.role = body.role;
+      assertNotSelf(actor, id, 'You cannot change your own role');
+
+      const role = await Role.findById(body.roleId).lean();
+      if (!role) throw new AuthError(400, 'Role not found');
+      if (!canAssignRole(actor, role)) {
+        throw new AuthError(403, 'You cannot assign a role with more access than you have');
+      }
+
+      const becomesSuperAdmin = role.key === SUPER_ADMIN_ROLE_KEY;
+      if (target.isSuperAdmin && !becomesSuperAdmin && (await countSuperAdmins()) <= 1) {
+        throw new AuthError(400, 'Cannot demote the last super admin');
+      }
+
+      user.roleId = role._id;
+      // Assigning a role copies its permissions; the user's set is independent afterwards.
+      user.permissions = becomesSuperAdmin ? [] : rolePermissions(role);
+      if (becomesSuperAdmin !== target.isSuperAdmin) revokeSessions = true;
+      newRoleKey = role.key;
     }
 
-    if (body.password !== undefined && String(body.password).length > 0) {
-      const password = String(body.password);
-      if (password.length < 6) {
-        return NextResponse.json(
-          { message: 'Password must be at least 6 characters' },
-          { status: 400 }
-        );
-      }
-      user.password = await bcrypt.hash(password, 10);
+    if (body.password) {
+      user.password = await bcrypt.hash(body.password, BCRYPT_COST);
+      user.failedLoginAttempts = 0;
+      user.lockUntil = null;
+      revokeSessions = true;
     }
 
+    if (revokeSessions) user.sessionVersion = (user.sessionVersion ?? 0) + 1;
     await user.save();
 
-    return NextResponse.json(serializeUser(user));
+    await audit(actor, {
+      action: 'user.update',
+      targetType: 'user',
+      targetId: user._id,
+      before,
+      after: {
+        name: user.name,
+        email: user.email,
+        role: newRoleKey ?? before.role,
+        passwordChanged: Boolean(body.password),
+        ...(newRoleKey ? { permissions: user.permissions } : {}),
+      },
+    });
+
+    return NextResponse.json(await loadSafeUser(id));
   } catch (error) {
-    return apiError(error, 'Failed to update user');
+    return routeError(error, 'Failed to update user');
   }
 }
 
@@ -74,42 +136,34 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await isAuthorized('admin');
-    if (!isAdmin) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-
-    const session = await getAuthSession();
+    const actor = await requirePermission('users.delete');
     const { id } = await params;
-
-    if (session?.user?._id === id) {
-      return NextResponse.json(
-        { message: 'You cannot delete your own account' },
-        { status: 400 }
-      );
-    }
+    assertObjectId(id, 'User');
+    assertNotSelf(actor, id, 'You cannot delete your own account');
 
     await connectToDB();
 
-    const user = await User.findById(id);
-    if (!user) {
+    const target = await loadSafeUser(id);
+    if (!target) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
+    assertCanManageUser(actor, toManagedTarget(target));
 
-    if (user.role === 'admin') {
-      const adminCount = await User.countDocuments({ role: 'admin' });
-      if (adminCount <= 1) {
-        return NextResponse.json(
-          { message: 'Cannot delete the last admin account' },
-          { status: 400 }
-        );
-      }
+    if (target.isSuperAdmin && (await countSuperAdmins()) <= 1) {
+      throw new AuthError(400, 'Cannot delete the last super admin');
     }
 
     await User.findByIdAndDelete(id);
 
+    await audit(actor, {
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: new Types.ObjectId(id),
+      before: { name: target.name, email: target.email, role: target.role?.key ?? null },
+    });
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
-    return apiError(error, 'Failed to delete user');
+    return routeError(error, 'Failed to delete user');
   }
 }

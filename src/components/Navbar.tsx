@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
-import { Car, UserCog, Home, Menu, X, LogOut } from 'lucide-react';
+import { Car, UserCog, Users, ShieldCheck, Menu, X, LogOut } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
+import { usePermissions } from '@/components/rbac/PermissionsProvider';
+import type { Permission } from '@/lib/rbac/permissions';
 import { LanguageModal } from '@/components/modals/LanguageModal';
 import { getSelectedCountryFlag, useGoogleTranslate } from '@/components/i18n/GoogleTranslateProvider';
 import { countryCodeToLocale } from '@/lib/countryToLocale';
@@ -34,7 +36,7 @@ export default function Navbar() {
   const mobileLanguageMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: session } = useSession();
-  const role = session?.user?.role;
+  const { can, me } = usePermissions();
   const googleTranslate = useGoogleTranslate();
 
   useEffect(() => {
@@ -81,15 +83,15 @@ export default function Navbar() {
   const signedInEmail = session?.user?.email || "";
   const showEmail = Boolean(signedInEmail && signedInEmail !== signedInName);
 
-  const dashboardHref = role === 'team' ? '/team/dashboard' : '/admin/dashboard';
-  const dashboardLabel = role === 'team' ? 'Dashboard' : 'Admin Dashboard';
+  const roleName = me?.role?.name ?? '';
 
-  const navLinks = [
-    { href: dashboardHref, label: dashboardLabel, icon: UserCog, roles: ['admin', 'team'] },
-    // { href: '/team/dashboard', label: 'Team Dashboard', icon: Wrench, roles: ['admin', 'team'] },
-    { href: '/admin/dashboard/post-job', label: 'Post Job', icon: Car, roles: ['admin', 'team'] },
-    { href: '/admin/dashboard/users', label: 'Users', icon: Home, roles: ['admin'] },
+  const navLinks: { href: string; label: string; icon: typeof Car; permission?: Permission }[] = [
+    { href: '/dashboard', label: 'Dashboard', icon: UserCog },
+    { href: '/dashboard/post-job', label: 'Post Job', icon: Car, permission: 'jobs.create' },
+    { href: '/dashboard/users', label: 'Users', icon: Users, permission: 'users.view' },
+    { href: '/dashboard/roles', label: 'Roles', icon: ShieldCheck, permission: 'roles.view' },
   ];
+  const visibleLinks = navLinks.filter((link) => !link.permission || can(link.permission));
 
   return (
     <header
@@ -113,8 +115,7 @@ export default function Navbar() {
 
 
           <nav className="hidden items-center gap-1 rounded-full border border-gray-200 bg-gray-100 p-1 lg:flex dark:border-gray-800 dark:bg-gray-900">
-            {navLinks
-              .filter((link) => link.roles.includes(role))
+            {visibleLinks
               .map((link) => {
                 const Icon = link.icon;
                 const hrefs = navLinks.map((item) => item.href);
@@ -181,7 +182,9 @@ export default function Navbar() {
                   <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">
                     {signedInName}
                   </span>
-                  {showEmail && (
+                  {roleName ? (
+                    <span className="block truncate text-xs text-gray-500">{roleName}</span>
+                  ) : showEmail && (
                     <span className="hidden truncate text-xs text-gray-500 xl:block">{signedInEmail}</span>
                   )}
                 </span>
@@ -231,6 +234,9 @@ export default function Navbar() {
                   {showEmail && (
                     <p className="truncate text-xs text-gray-500">{signedInEmail}</p>
                   )}
+                  {roleName && (
+                    <p className="truncate text-xs text-indigo-600 dark:text-indigo-400">{roleName}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -238,8 +244,7 @@ export default function Navbar() {
             <div className="mx-2 my-1 h-px bg-gray-100 dark:bg-gray-800" />
 
             <div className="space-y-1">
-              {navLinks
-                .filter((link) => link.roles.includes(role))
+              {visibleLinks
                 .map((link) => {
                   const Icon = link.icon;
                   const hrefs = navLinks.map((item) => item.href);

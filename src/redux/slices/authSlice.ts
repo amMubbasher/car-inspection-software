@@ -4,7 +4,6 @@ interface AuthState {
   user: {
     name: string;
     email: string;
-    role: "admin" | "team";
   } | null;
 }
 

@@ -28,7 +28,8 @@ import JobDetailsPanel, {
 import { NoTranslate } from "@/components/ui/NoTranslate";
 import { localDayBound } from "@/lib/localDay";
 import type { Job } from "@/types/job";
-import type { SafeUser } from "@/lib/serializeUser";
+import type { UserOption } from "@/lib/serializeUser";
+import { usePermissions } from "@/components/rbac/PermissionsProvider";
 
 const PAGE_SIZE = 10;
 
@@ -78,7 +79,12 @@ function pageList(current: number, total: number): (number | "ellipsis")[] {
   return pages;
 }
 
-export default function AdminDashboard() {
+export default function Dashboard() {
+  const { can, loading: permissionsLoading } = usePermissions();
+  const canFilterByUser = can("jobs.filter_by_user");
+  const canExport = can("reports.export");
+  const canViewAll = can("jobs.view_all");
+  const canViewJobs = canViewAll || can("jobs.view_own");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filtered, setFiltered] = useState<Job[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -90,7 +96,7 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [createdBy, setCreatedBy] = useState("");
-  const [users, setUsers] = useState<SafeUser[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -98,11 +104,12 @@ export default function AdminDashboard() {
   const fetchRequestId = useRef(0);
 
   useEffect(() => {
-    fetch("/api/users?limit=1000")
+    if (!canFilterByUser && !canExport) return;
+    fetch("/api/users/options")
       .then((res) => (res.ok ? res.json() : { users: [] }))
       .then((data) => setUsers(data.users ?? []))
       .catch(() => setUsers([]));
-  }, []);
+  }, [canFilterByUser, canExport]);
 
   const fetchJobs = async (currentPage = page, query = searchQuery, status = statusFilter) => {
     const requestId = ++fetchRequestId.current;
@@ -112,7 +119,7 @@ export default function AdminDashboard() {
       limit: String(PAGE_SIZE),
       ...(startDate && { startDate: localDayBound(startDate, "start") }),
       ...(endDate && { endDate: localDayBound(endDate, "end") }),
-      ...(createdBy && { createdBy }),
+      ...(createdBy && canFilterByUser && { createdBy }),
     });
     try {
       const res = await fetch(`/api/jobs?${params}`, { cache: "no-store" });
@@ -169,12 +176,17 @@ export default function AdminDashboard() {
         <div className="min-w-0 flex-1 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">All Jobs</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {canViewAll ? "All Jobs" : "My Jobs"}
+              </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Manage and monitor all service requests
+                {canViewAll
+                  ? "Manage and monitor all service requests"
+                  : "Jobs you created or are assigned to"}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {canExport && (
               <button
                 type="button"
                 onClick={() => setExportOpen(true)}
@@ -182,6 +194,7 @@ export default function AdminDashboard() {
               >
                 Export Report
               </button>
+              )}
               <button
                 type="button"
                 onClick={() => fetchJobs(page)}
@@ -228,10 +241,19 @@ export default function AdminDashboard() {
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              <UserAutocomplete users={users} value={createdBy} onChange={setCreatedBy} />
+              {canFilterByUser && (
+                <UserAutocomplete users={users} value={createdBy} onChange={setCreatedBy} />
+              )}
             </div>
 
-            {isInitialLoad ? (
+            {!permissionsLoading && !canViewJobs ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No access to jobs</h3>
+                <p className="max-w-md text-sm text-gray-500">
+                  Your account does not have permission to view jobs. Contact an administrator.
+                </p>
+              </div>
+            ) : isInitialLoad ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
                 <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
                 <p className="font-medium">Loading jobs...</p>
@@ -432,11 +454,13 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      <ExportJobsReportDialog
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        users={users}
-      />
+      {canExport && (
+        <ExportJobsReportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          users={users}
+        />
+      )}
     </div>
   );
 }

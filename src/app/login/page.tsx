@@ -1,7 +1,7 @@
 "use client";
 
-import { signIn, getSession } from "next-auth/react";
-import { useState } from "react";
+import { signIn, signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -16,6 +16,15 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // The server rejected the current session (revoked or outdated): clear the cookie.
+    if (new URLSearchParams(window.location.search).has("expired")) {
+      signOut({ redirect: false }).then(() =>
+        setError("Your session has ended. Please sign in again.")
+      );
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -29,12 +38,7 @@ export default function LoginPage() {
       });
 
       if (res?.ok) {
-        const session = await getSession();
-        const destination =
-          session?.user?.role === "admin"
-            ? "/admin/dashboard"
-            : "/team/dashboard";
-        router.push(destination);
+        router.push("/dashboard");
         return;
       }
 

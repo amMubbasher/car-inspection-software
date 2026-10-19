@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { GoogleTranslateProvider } from "@/components/i18n/GoogleTranslateProvider";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { PermissionsProvider } from "@/components/rbac/PermissionsProvider";
 
 const GOOGLE_TRANSLATE_CRITICAL_CSS = `
 html { margin-top: 0 !important; }
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           aria-hidden="true"
         />
         <SessionProvider>
+          <PermissionsProvider>
           <ReduxProvider store={store}>
             <ThemeProvider>
               <GoogleTranslateProvider>
@@ -53,6 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </GoogleTranslateProvider>
             </ThemeProvider>
           </ReduxProvider>
+          </PermissionsProvider>
         </SessionProvider>
       </body>
     </html>

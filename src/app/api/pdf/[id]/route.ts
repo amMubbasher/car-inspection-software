@@ -1,8 +1,14 @@
 import { connectToDB } from "@/lib/db";
 import { Job } from "@/models/Job";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import {
+  assertObjectId,
+  AuthError,
+  can,
+  requirePermission,
+  routeError,
+} from "@/lib/rbac/server";
+import { jobScope } from "@/lib/rbac/jobs";
 import { generateJobPDF } from "@/lib/pdf";
 import { getLocaleFromRequest } from "@/lib/translate";
 import { processCarDiagramPng } from "@/lib/carDiagram";
@@ -21,16 +27,21 @@ export async function GET(
   let jobId = "?";
 
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["admin", "team"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requirePermission("jobs.download_pdf");
+    const scope = jobScope(user);
+    const receipt = new URL(req.url).searchParams.get("receipt") === "1";
+    if (receipt && !can(user, "jobs.download_receipt")) {
+      throw new AuthError(403, "You do not have permission to download receipts");
     }
 
     const { id } = await params;
+    assertObjectId(id, "Job");
     jobId = id;
     console.log(`[pdf] request id=${id}`);
     await connectToDB();
-    const job = await Job.findById(id).populate("createdBy", "name email").lean();
+    const job = await Job.findOne({ _id: id, ...scope })
+      .populate("createdBy", "name email")
+      .lean();
 
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -55,7 +66,6 @@ export async function GET(
     }
 
     const locale = getLocaleFromRequest(req);
-    const receipt = new URL(req.url).searchParams.get("receipt") === "1";
     const pdfBytes = await generateJobPDF(job as unknown as JobType, {
       locale,
       bannerBytes,
@@ -84,6 +94,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    if (error instanceof AuthError) return routeError(error);
     const message = error instanceof Error ? error.message : String(error);
     console.error(
       `[pdf] FAILED id=${jobId} after ${Date.now() - started}ms: ${
@@ -99,7 +110,7 @@ export async function GET(
     );
 
     return NextResponse.json(
-      { error: "Failed to generate PDF", details: message },
+      { error: "Failed to generate PDF" },
       { status: 500 }
     );
   }

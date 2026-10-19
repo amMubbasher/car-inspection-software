@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { SafeUser } from "@/lib/serializeUser";
+import type { UserOption } from "@/lib/serializeUser";
 
-function userLabel(user: Pick<SafeUser, "name" | "email">) {
+function userLabel(user: Pick<UserOption, "name" | "email">) {
   return user.name?.trim() || user.email;
 }
 
@@ -15,7 +15,7 @@ export function UserAutocomplete({
   value,
   onChange,
 }: {
-  users: SafeUser[];
+  users: UserOption[];
   value: string;
   onChange: (userId: string) => void;
 }) {

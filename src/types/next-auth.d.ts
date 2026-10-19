@@ -1,13 +1,17 @@
 // types/next-auth.d.ts
-import NextAuth from "next-auth";
+import "next-auth";
+import "next-auth/jwt";
 
+// The token only identifies the user. Roles and permissions are always read
+// from the database (see src/lib/rbac/server.ts), never trusted from the token.
 declare module "next-auth" {
   interface Session {
     user: {
-      _id: string; //  renamed from id to _id for consistency
+      _id: string;
       email: string;
       name?: string;
-      role: "admin" | "team";
+      /** Session version; must match the user's sessionVersion in the DB. */
+      sv: number;
     };
   }
 
@@ -15,7 +19,7 @@ declare module "next-auth" {
     _id: string;
     email: string;
     name?: string;
-    role: "admin" | "team";
+    sv: number;
   }
 }
 
@@ -24,6 +28,6 @@ declare module "next-auth/jwt" {
     _id: string;
     email: string;
     name?: string;
-    role: "admin" | "team";
+    sv: number;
   }
 }

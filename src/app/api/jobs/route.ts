@@ -5,8 +5,8 @@ import { Counter } from "@/models/Counter";
 import { jobSchema } from "@/lib/validations/jobSchema";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { can, requirePermission, requireUser, routeError } from "@/lib/rbac/server";
+import { jobScope } from "@/lib/rbac/jobs";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +20,10 @@ function parseFilterDate(value: string | null, endOfDay: boolean) {
 }
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !["admin", "team"].includes(session.user.role)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requirePermission("jobs.create");
 
     await connectToDB();
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const parsed = jobSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
@@ -35,14 +32,11 @@ export async function POST(req: Request) {
       );
     }
     
-    const creator = await User.findById(session.user._id).select("name email");
+    const creator = await User.findById(user._id).select("name email");
     if (!creator) {
-      return NextResponse.json({ error: "Job creation failed", details: "Creator not found" }, { status: 500 });
+      return NextResponse.json({ error: "Job creation failed" }, { status: 500 });
     }
     const inspectorName = creator.name?.trim() || creator.email;
-    if (!inspectorName) {
-      return NextResponse.json({ error: "Job creation failed", details: "Creator has no name or email" }, { status: 500 });
-    }
 
     // Get and increment the job counter atomically
     // @ts-ignore
@@ -52,46 +46,40 @@ export async function POST(req: Request) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    // Status is never client-controlled on creation.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { status: _status, ...data } = parsed.data;
     const jobData = {
-      ...parsed.data,
+      ...data,
+      status: "pending",
       customerName: inspectorName,
       jobCount: counter.value,
-      createdBy: session.user._id,
-      price: Math.max(0, Number(parsed.data.price) || 0),
+      createdBy: user._id,
+      price: Math.max(0, Number(data.price) || 0),
     };
     
-    //@ts-ignore
     const newJob = await Job.create(jobData);
     return NextResponse.json(serializeJob(newJob), { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Job creation failed", details: error instanceof Error ? error.message : error },
-      { status: 500 }
-    );
+    return routeError(error, "Job creation failed");
   }
 }
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !["admin", "team"].includes(session.user.role)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
-      );
-    }
+    const user = await requireUser();
+    const scope = jobScope(user);
 
     await connectToDB();
 
     const { searchParams } = new URL(req.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10));
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const createdBy = searchParams.get("createdBy");
 
-    const query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = { ...scope };
     if (startDate || endDate) {
       const createdAt: Record<string, Date> = {};
       const start = parseFilterDate(startDate, false);
@@ -103,7 +91,7 @@ export async function GET(req: Request) {
       if (end) createdAt.$lte = end;
       if (Object.keys(createdAt).length > 0) query.createdAt = createdAt;
     }
-    if (createdBy && isValidObjectId(createdBy)) {
+    if (createdBy && isValidObjectId(createdBy) && can(user, "jobs.filter_by_user")) {
       query.createdBy = createdBy;
     }
 
@@ -129,12 +117,6 @@ export async function GET(req: Request) {
       { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error: unknown) {
-    console.error(" Failed to fetch jobs:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to fetch jobs", details: message },
-      { status: 500 }
-    );
+    return routeError(error, "Failed to fetch jobs");
   }
 }
-

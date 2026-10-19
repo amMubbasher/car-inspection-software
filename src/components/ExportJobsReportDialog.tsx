@@ -13,7 +13,7 @@ import {
 import { DateRangeField } from "@/components/DateRangeField";
 import { NoTranslate } from "@/components/ui/NoTranslate";
 import { localDayBound } from "@/lib/localDay";
-import type { SafeUser } from "@/lib/serializeUser";
+import type { UserOption } from "@/lib/serializeUser";
 import { cn } from "@/lib/utils";
 
 type ReportRow = {
@@ -31,7 +31,7 @@ function getLocalDateString(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-function userLabel(user: Pick<SafeUser, "name" | "email">) {
+function userLabel(user: Pick<UserOption, "name" | "email">) {
   return user.name?.trim() || user.email;
 }
 
@@ -70,7 +70,7 @@ export function ExportJobsReportDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  users: SafeUser[];
+  users: UserOption[];
 }) {
   const today = getLocalDateString();
   const wasOpen = useRef(false);

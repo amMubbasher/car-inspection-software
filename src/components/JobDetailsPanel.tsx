@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useSession } from "next-auth/react";
+import { usePermissions } from "@/components/rbac/PermissionsProvider";
 import {
   Car,
   Check,
@@ -143,9 +143,15 @@ export default function JobDetailsPanel({
   onClose: () => void;
   refreshJobs: () => void;
 }) {
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "admin";
-  const isTeam = session?.user?.role === "team";
+  const { can, me } = usePermissions();
+  const canEdit = can("jobs.edit");
+  const canInspect = can("jobs.inspect");
+  const canReview = can("jobs.review");
+  const isAssignedToMe =
+    !!job.assignedTo && typeof job.assignedTo === "object" && job.assignedTo._id === me?.user._id;
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState("");
+  const [isReviewing, setIsReviewing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("");
@@ -254,7 +260,30 @@ export default function JobDetailsPanel({
   };
 
   const handleEdit = () => {
-    window.location.href = `/admin/dashboard/edit-job/${job._id}`;
+    window.location.href = `/dashboard/edit-job/${job._id}`;
+  };
+
+  const handleReview = async (status: "accepted" | "rejected", note = "") => {
+    setIsReviewing(true);
+    try {
+      const res = await fetch(`/api/jobs/${job._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          status === "rejected" ? { status, rejectionNote: note } : { status }
+        ),
+      });
+      if (res.ok) {
+        setRejectOpen(false);
+        setRejectionNote("");
+        refreshJobs();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert("Error: " + (data?.error || "Something went wrong"));
+      }
+    } finally {
+      setIsReviewing(false);
+    }
   };
 
   return (
@@ -298,7 +327,7 @@ export default function JobDetailsPanel({
           <section>
             <div className="mb-1 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Job Details</h3>
-              {(isAdmin || isTeam) && (
+              {canEdit && (
                 <button
                   type="button"
                   onClick={handleEdit}
@@ -324,6 +353,13 @@ export default function JobDetailsPanel({
               value={job.inspectionType || "-"}
             />
           </section>
+
+          {job.status === "rejected" && job.rejectionNote && (
+            <section className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+              <p className="mb-1 font-semibold">Rejection note</p>
+              <p className="whitespace-pre-wrap">{job.rejectionNote}</p>
+            </section>
+          )}
 
           <section className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -355,6 +391,7 @@ export default function JobDetailsPanel({
           <div className="grid grid-cols-2 gap-2">
             {job.status !== "pending" && (
               <>
+                {can("jobs.download_pdf") && (
                 <button
                   type="button"
                   onClick={() => window.open(jobPdfUrl(job._id), "_blank")}
@@ -363,6 +400,8 @@ export default function JobDetailsPanel({
                   <Download className="h-4 w-4" />
                   Download PDF
                 </button>
+                )}
+                {can("jobs.download_pdf") && can("jobs.download_receipt") && (
                 <button
                   type="button"
                   onClick={() => window.open(jobPdfUrl(job._id, true), "_blank")}
@@ -371,9 +410,10 @@ export default function JobDetailsPanel({
                   <Download className="h-4 w-4" />
                   Download Receipt
                 </button>
+                )}
               </>
             )}
-            {(isAdmin || isTeam) && (
+            {canEdit && (
               <button
                 type="button"
                 onClick={handleEdit}
@@ -383,7 +423,7 @@ export default function JobDetailsPanel({
                 Edit
               </button>
             )}
-            {isAdmin && (
+            {can("jobs.delete") && (
               <button
                 type="button"
                 onClick={handleDelete}
@@ -393,7 +433,7 @@ export default function JobDetailsPanel({
                 Delete
               </button>
             )}
-            {(isAdmin || isTeam) && job.status === "pending" && (
+            {canInspect && canEdit && job.status === "pending" && !job.assignedTo && (
               <button
                 type="button"
                 onClick={openStartInspection}
@@ -403,7 +443,7 @@ export default function JobDetailsPanel({
                 Start Inspection
               </button>
             )}
-            {(isAdmin || isTeam) && job.status === "in_progress" && (
+            {canInspect && isAssignedToMe && job.status === "in_progress" && (
               <button
                 type="button"
                 onClick={handleComplete}
@@ -412,6 +452,28 @@ export default function JobDetailsPanel({
                 <Check className="h-4 w-4" />
                 Complete
               </button>
+            )}
+            {canReview && ["completed", "accepted", "rejected"].includes(job.status) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleReview("accepted")}
+                  disabled={isReviewing || job.status === "accepted"}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-green-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50"
+                >
+                  <Check className="h-4 w-4" />
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRejectOpen(true)}
+                  disabled={isReviewing}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-red-500 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-400 disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                  Reject
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -628,6 +690,40 @@ export default function JobDetailsPanel({
             >
               <Sparkles className="h-4 w-4" />
               {isSubmitting ? "Updating & Starting..." : "Update & Start"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent className="rounded-2xl border-gray-200 dark:border-gray-800 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Job</DialogTitle>
+            <DialogDescription>Add a note explaining why this job is rejected.</DialogDescription>
+          </DialogHeader>
+          <textarea
+            rows={3}
+            maxLength={1000}
+            value={rejectionNote}
+            onChange={(e) => setRejectionNote(e.target.value)}
+            placeholder="Rejection note"
+            className="w-full resize-y rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          />
+          <DialogFooter className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRejectOpen(false)}
+              className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleReview("rejected", rejectionNote)}
+              disabled={isReviewing}
+              className="rounded-xl bg-red-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-400 disabled:opacity-50"
+            >
+              {isReviewing ? "Rejecting..." : "Reject"}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -1,7 +1,6 @@
 import { Types } from "mongoose";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { requirePermission, routeError } from "@/lib/rbac/server";
 import { connectToDB } from "@/lib/db";
 import { Job } from "@/models/Job";
 import { User } from "@/models/User";
@@ -18,13 +17,7 @@ function parseFilterDate(value: string | null, endOfDay: boolean) {
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
-      );
-    }
+    await requirePermission("reports.export");
 
     await connectToDB();
 
@@ -42,7 +35,8 @@ export async function GET(req: Request) {
     const selectedIds = (userIdsParam || "")
       .split(",")
       .map((id) => id.trim())
-      .filter((id) => Types.ObjectId.isValid(id));
+      .filter((id) => Types.ObjectId.isValid(id))
+      .slice(0, 1000);
 
     const users =
       selectedIds.length > 0
@@ -117,11 +111,6 @@ export async function GET(req: Request) {
       { headers: { "Cache-Control": "private, no-store" } }
     );
   } catch (error: unknown) {
-    console.error("Failed to build jobs report:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: "Failed to build report", details: message },
-      { status: 500 }
-    );
+    return routeError(error, "Failed to build report");
   }
 }
