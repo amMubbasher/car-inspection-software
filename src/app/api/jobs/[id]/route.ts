@@ -13,7 +13,8 @@ import {
   routeError,
 } from "@/lib/rbac/server";
 import { jobScope } from "@/lib/rbac/jobs";
-import { jobEditSchema } from "@/lib/validations/jobSchema";
+import { jobEditSchema, PAYMENT_METHOD_REQUIRED } from "@/lib/validations/jobSchema";
+import { needsPaymentMethod } from "@/config/paymentMethods";
 import { serializeJob } from "@/lib/serializeJob";
 
 type Params = { params: Promise<{ id: string }> };
@@ -75,6 +76,19 @@ export async function PATCH(req: Request, { params }: Params) {
     const updatePayload: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(edits)) {
       if (value !== undefined) updatePayload[key] = value;
+    }
+
+    // Price and payment method are validated together against the stored job, since
+    // a request may change only one of them.
+    if (edits.price !== undefined || edits.paymentMethod !== undefined) {
+      const current = await Job.findOne({ _id: jobId, ...scope }).select("price paymentMethod").lean();
+      if (!current) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+      const price = edits.price ?? current.price ?? 0;
+      const method = edits.paymentMethod !== undefined ? edits.paymentMethod : current.paymentMethod;
+      if (needsPaymentMethod(price) && !method) {
+        return NextResponse.json({ error: PAYMENT_METHOD_REQUIRED }, { status: 400 });
+      }
+      updatePayload.paymentMethod = needsPaymentMethod(price) ? method : null;
     }
 
     const filter: Record<string, unknown> = { _id: jobId, ...scope };

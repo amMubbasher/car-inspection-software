@@ -44,6 +44,7 @@ export interface Job {
   } | null;
   rejectionNote?: string;
   price?: number;
+  paymentMethod?: string | null;
   inspectionTabs: InspectionTab[];
   createdAt?: string;
   updatedAt?: string;

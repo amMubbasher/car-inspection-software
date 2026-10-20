@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 // import { FiUpload } from "react-icons/fi";
 import { inspectionTabs } from "@/config/inspectionTabs";
+import { needsPaymentMethod } from "@/config/paymentMethods";
+import { PaymentMethodSelect } from "@/components/PaymentMethodSelect";
 import type { Job, Severity, InspectionType } from "@/types/job";
 // import Image from "next/image";
 
@@ -22,6 +24,7 @@ export default function PostJobPage() {
     odometer: undefined,
     status: "pending",
     price: 0,
+    paymentMethod: "",
     inspectionTabs: [],
   });
 
@@ -114,6 +117,10 @@ export default function PostJobPage() {
       alert("Please select an inspection type");
       return;
     }
+    if (needsPaymentMethod(form.price) && !form.paymentMethod) {
+      alert("Please select a payment method");
+      return;
+    }
     
     setIsSubmitting(true);
     setSubmitError("");
@@ -126,6 +133,7 @@ export default function PostJobPage() {
         odometer: form.odometer,
         inspectionType: form.inspectionType,
         price: form.price ?? 0,
+        paymentMethod: needsPaymentMethod(form.price) ? form.paymentMethod : null,
         inspectionTabs: form.inspectionTabs,
         status: "pending",
       };
@@ -225,15 +233,29 @@ export default function PostJobPage() {
                 value={form.price ? String(form.price) : ""}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
+                  const price = raw === "" ? 0 : Number(raw);
                   setForm({
                     ...form,
-                    price: raw === "" ? 0 : Number(raw),
+                    price,
+                    paymentMethod: needsPaymentMethod(price) ? form.paymentMethod : "",
                   });
                 }}
                 className={fieldClass}
                 translate="no"
               />
             </div>
+            {needsPaymentMethod(form.price) && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Payment Method <span className="text-red-500">*</span>
+                </label>
+                <PaymentMethodSelect
+                  value={form.paymentMethod ?? ""}
+                  onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                  className={fieldClass}
+                />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Inspection Type <span className="text-red-500">*</span>

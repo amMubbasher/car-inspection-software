@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 // import { FiUpload } from "react-icons/fi";
 import { SeverityToggle } from "@/components/SeverityToggle";
 import { inspectionTabs as baseTabs } from "@/config/inspectionTabs";
+import { needsPaymentMethod } from "@/config/paymentMethods";
+import { PaymentMethodSelect } from "@/components/PaymentMethodSelect";
 import type { Job, Severity, InspectionType } from "@/types/job";
 
 export default function EditJobPage() {
@@ -51,6 +53,7 @@ export default function EditJobPage() {
         setForm({
           ...job,
           price: job.price ?? 0,
+          paymentMethod: job.paymentMethod ?? "",
           inspectionTabs: mergedTabs,
         });
         
@@ -119,6 +122,10 @@ export default function EditJobPage() {
 
   const handleSubmit = async () => {
     if (!form) return;
+    if (needsPaymentMethod(form.price) && !form.paymentMethod) {
+      alert("Please select a payment method");
+      return;
+    }
     const payload = {
       carNumber: form.carNumber,
       customerPhone: form.customerPhone ?? "",
@@ -126,6 +133,7 @@ export default function EditJobPage() {
       odometer: form.odometer,
       inspectionType: form.inspectionType,
       price: form.price ?? 0,
+      paymentMethod: needsPaymentMethod(form.price) ? form.paymentMethod : null,
       inspectionTabs: form.inspectionTabs,
     };
     const res = await fetch(`/api/jobs/${id}`, {
@@ -137,7 +145,8 @@ export default function EditJobPage() {
       alert("Job updated successfully");
       router.push("/dashboard");
     } else {
-      alert("Error updating job");
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Error updating job");
     }
   };
   // Update inspection tabs and active tab when inspection type changes
@@ -248,15 +257,29 @@ export default function EditJobPage() {
               value={form.price ? String(form.price) : ""}
               onChange={(e) => {
                 const raw = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
+                const price = raw === "" ? 0 : Number(raw);
                 setForm({
                   ...form,
-                  price: raw === "" ? 0 : Number(raw),
+                  price,
+                  paymentMethod: needsPaymentMethod(price) ? form.paymentMethod : "",
                 });
               }}
               className={fieldClass}
               translate="no"
             />
           </div>
+          {needsPaymentMethod(form.price) && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Payment Method <span className="text-red-500">*</span>
+              </label>
+              <PaymentMethodSelect
+                value={form.paymentMethod ?? ""}
+                onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                className={fieldClass}
+              />
+            </div>
+          )}
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Inspection Type</label>
             <select

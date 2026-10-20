@@ -40,6 +40,7 @@ export async function GET(
     console.log(`[pdf] request id=${id}`);
     await connectToDB();
     const job = await Job.findOne({ _id: id, ...scope })
+      .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
       .lean();
 

@@ -37,6 +37,9 @@ const JobSchema = new Schema(
     inspectionTabs: [InspectionTabSchema],
     rejectionNote: String,
     price: { type: Number, default: 0, min: 0 },
+    // Allowed values live in src/config/paymentMethods.json and are checked by the API,
+    // so removing an option later never invalidates old jobs.
+    paymentMethod: { type: String, trim: true, default: null },
   },
   { timestamps: true }
 );

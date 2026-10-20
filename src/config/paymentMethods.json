@@ -1,0 +1,6 @@
+[
+  { "value": "cash", "label": "Cash" },
+  { "value": "credit", "label": "Credit" },
+  { "value": "card", "label": "Card" },
+  { "value": "online_transfer", "label": "Online Transfer" }
+]

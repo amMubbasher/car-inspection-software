@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 
     const userObjectIds = users.map((user) => user._id);
     const match: Record<string, unknown> = {
-      createdBy: { $in: userObjectIds },
+      assignedTo: { $in: userObjectIds },
     };
     if (start || end) {
       const createdAt: Record<string, Date> = {};
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       { $match: match },
       {
         $group: {
-          _id: "$createdBy",
+          _id: "$assignedTo",
           jobCount: { $sum: 1 },
           totalPrice: { $sum: { $ifNull: ["$price", 0] } },
         },

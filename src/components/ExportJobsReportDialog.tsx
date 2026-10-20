@@ -42,7 +42,7 @@ function downloadExcel(
   end: string
 ) {
   const data = [
-    ["Inspector", "Email", "Jobs Created", "Total Price"],
+    ["Inspector", "Email", "Jobs Inspected", "Total Price"],
     ...rows.map((row) => [
       row.name || row.email,
       row.email,
@@ -174,7 +174,7 @@ export function ExportJobsReportDialog({
         <DialogHeader className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
           <DialogTitle>Export Report</DialogTitle>
           <DialogDescription>
-            Jobs created by each selected inspector, with job count and total price for the date range.
+            Jobs assigned to each selected inspector, with job count and total price for the date range.
           </DialogDescription>
         </DialogHeader>
 
@@ -317,7 +317,7 @@ export function ExportJobsReportDialog({
                   <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                     <tr>
                       <th className="px-4 py-3">Inspector</th>
-                      <th className="px-4 py-3">Jobs created</th>
+                      <th className="px-4 py-3">Jobs inspected</th>
                       <th className="px-4 py-3 text-right">Total price</th>
                     </tr>
                   </thead>

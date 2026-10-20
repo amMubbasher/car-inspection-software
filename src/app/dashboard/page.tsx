@@ -40,31 +40,11 @@ function getLocalDateString(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-function applyClientFilters(jobList: Job[], query: string, status: string) {
-  let result = jobList;
-
-  if (query) {
-    const q = query.toLowerCase();
-    result = result.filter(
-      (job) =>
-        job.carNumber.toLowerCase().includes(q) ||
-        job.customerName.toLowerCase().includes(q) ||
-        (job.customerPhone ?? "").toLowerCase().includes(q) ||
-        (job.engineNumber ?? "").toLowerCase().includes(q)
-    );
-  }
-
-  if (status === "rejected") {
-    result = result.filter((job) => (job.rejectionNote?.length ?? 0) > 0);
-  } else if (status === "completed") {
-    result = result.filter(
-      (job) => job.status === "completed" || job.status === "accepted"
-    );
-  } else if (status) {
-    result = result.filter((job) => job.status === status);
-  }
-
-  return result;
+function inspectorLabel(job: Job) {
+  const assignee = job.assignedTo;
+  return assignee && typeof assignee === "object"
+    ? assignee.name?.trim() || assignee.email
+    : "";
 }
 
 function pageList(current: number, total: number): (number | "ellipsis")[] {
@@ -86,7 +66,6 @@ export default function Dashboard() {
   const canViewAll = can("jobs.view_all");
   const canViewJobs = canViewAll || can("jobs.view_own");
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [filtered, setFiltered] = useState<Job[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [page, setPage] = useState(1);
@@ -95,9 +74,10 @@ export default function Dashboard() {
   const today = getLocalDateString();
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [createdBy, setCreatedBy] = useState("");
+  const [inspectorId, setInspectorId] = useState("");
   const [users, setUsers] = useState<UserOption[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -111,7 +91,12 @@ export default function Dashboard() {
       .catch(() => setUsers([]));
   }, [canFilterByUser, canExport]);
 
-  const fetchJobs = async (currentPage = page, query = searchQuery, status = statusFilter) => {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchJobs = async (currentPage = page) => {
     const requestId = ++fetchRequestId.current;
     setIsRefreshing(true);
     const params = new URLSearchParams({
@@ -119,7 +104,9 @@ export default function Dashboard() {
       limit: String(PAGE_SIZE),
       ...(startDate && { startDate: localDayBound(startDate, "start") }),
       ...(endDate && { endDate: localDayBound(endDate, "end") }),
-      ...(createdBy && canFilterByUser && { createdBy }),
+      ...(inspectorId && canFilterByUser && { assignedTo: inspectorId }),
+      ...(debouncedSearch && { q: debouncedSearch }),
+      ...(statusFilter && { status: statusFilter }),
     });
     try {
       const res = await fetch(`/api/jobs?${params}`, { cache: "no-store" });
@@ -129,7 +116,6 @@ export default function Dashboard() {
 
       const fetchedJobs: Job[] = data.jobs;
       setJobs(fetchedJobs);
-      setFiltered(applyClientFilters(fetchedJobs, query, status));
       setTotal(data.pagination?.total ?? fetchedJobs.length);
       setTotalPages(data.pagination?.totalPages ?? 1);
     } catch (error) {
@@ -145,24 +131,15 @@ export default function Dashboard() {
   useEffect(() => {
     fetchJobs(1);
     setPage(1);
-    // Dates and creator are server filters. Search and status are reapplied inside fetchJobs.
+    // All filters run on the server so search and status cover every page, not just this one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, createdBy]);
+  }, [startDate, endDate, inspectorId, debouncedSearch, statusFilter]);
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    setFiltered(applyClientFilters(jobs, query, statusFilter));
-  };
-
-  const handleStatus = (status: string) => {
-    const value = status === "all" ? "" : status;
-    setStatusFilter(value);
-    setFiltered(applyClientFilters(jobs, searchQuery, value));
-  };
+  const handleStatus = (status: string) => setStatusFilter(status === "all" ? "" : status);
 
   const selected = jobs.find((job) => job._id === selectedId) ?? null;
-  const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = (page - 1) * PAGE_SIZE + filtered.length;
+  const rangeStart = jobs.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = (page - 1) * PAGE_SIZE + jobs.length;
 
   const goToPage = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
@@ -219,9 +196,9 @@ export default function Dashboard() {
               <div className="relative min-w-0 lg:flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Search car, inspector or chassis"
+                  placeholder="Search car, phone, inspector or chassis"
                   value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="bg-white pl-10 text-sm dark:bg-gray-900"
                 />
               </div>
@@ -242,7 +219,7 @@ export default function Dashboard() {
                 </SelectContent>
               </Select>
               {canFilterByUser && (
-                <UserAutocomplete users={users} value={createdBy} onChange={setCreatedBy} />
+                <UserAutocomplete users={users} value={inspectorId} onChange={setInspectorId} />
               )}
             </div>
 
@@ -258,7 +235,7 @@ export default function Dashboard() {
                 <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
                 <p className="font-medium">Loading jobs...</p>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : jobs.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                 <Search className="h-8 w-8 text-indigo-500" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No jobs found</h3>
@@ -275,7 +252,7 @@ export default function Dashboard() {
                     </div>
                   )}
                   <ul className="divide-y divide-gray-100 dark:divide-gray-800 lg:hidden">
-                    {filtered.map((job) => {
+                    {jobs.map((job) => {
                       const when = formatJobDate(job.createdAt);
                       const isSelected = job._id === selectedId;
                       return (
@@ -302,9 +279,9 @@ export default function Dashboard() {
                                   {job.customerPhone}
                                 </NoTranslate>
                               )}
-                              <span className="mt-1 block truncate text-sm text-gray-600 dark:text-gray-300">
-                                {job.customerName}
-                              </span>
+                              <NoTranslate as="span" className="mt-1 block truncate text-sm text-gray-600 dark:text-gray-300">
+                                {inspectorLabel(job) || "Unassigned"}
+                              </NoTranslate>
                               <span className="mt-0.5 block truncate text-xs text-gray-400">
                                 {job.inspectionType || "-"}
                                 {when.date ? ` · ${when.date}` : ""}
@@ -330,7 +307,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((job) => {
+                      {jobs.map((job) => {
                         const when = formatJobDate(job.createdAt);
                         const isSelected = job._id === selectedId;
                         return (
@@ -365,9 +342,13 @@ export default function Dashboard() {
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                                   <User className="h-4 w-4" />
                                 </span>
-                                <NoTranslate as="p" className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                                  {job.customerName}
-                                </NoTranslate>
+                                {inspectorLabel(job) ? (
+                                  <NoTranslate as="p" className="truncate text-sm font-medium text-gray-900 dark:text-white">
+                                    {inspectorLabel(job)}
+                                  </NoTranslate>
+                                ) : (
+                                  <p className="text-sm text-gray-400">Unassigned</p>
+                                )}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">

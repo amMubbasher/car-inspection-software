@@ -1,4 +1,5 @@
 import type { Job } from "@/types/job";
+import { paymentMethodLabel } from "@/config/paymentMethods";
 import {
   PDF_LABELS_EN,
   PDF_TRANSLATABLE_LABEL_KEYS,
@@ -83,6 +84,7 @@ export async function generateJobPDF(
   const includePrice = options.includePrice ?? false;
   const jobPrice = Math.max(0, Number(job.price) || 0);
   const showCost = includePrice && jobPrice > 0;
+  const paymentMethod = paymentMethodLabel(job.paymentMethod);
 
   const translateStarted = Date.now();
   const { labels, issues } = await buildTranslatedContent(job, locale);
@@ -93,13 +95,12 @@ export async function generateJobPDF(
   );
 
   const fallback = PDF_LABELS_EN.fallback;
-  const creator = job.createdBy;
+  // The inspector is the user the job is assigned to.
+  const assignee = job.assignedTo;
   const inspector =
-    (creator && typeof creator === "object"
-      ? creator.name?.trim() || creator.email
-      : "") ||
-    job.customerName ||
-    fallback;
+    (assignee && typeof assignee === "object"
+      ? assignee.name?.trim() || assignee.email
+      : "") || fallback;
   const inspectionType = job.inspectionType?.trim() || fallback;
   const reportDate = new Date().toLocaleDateString("en-GB", {
     timeZone: TIMEZONE,
@@ -129,7 +130,7 @@ export async function generateJobPDF(
     costText: showCost
       ? `${inspectionType} ${PDF_LABELS_EN.cost}: AED ${jobPrice.toLocaleString(
           "en-AE"
-        )}`
+        )}${paymentMethod ? ` (${paymentMethod})` : ""}`
       : null,
     generatedTimestamp: new Date().toLocaleString("en-GB", {
       timeZone: TIMEZONE,
