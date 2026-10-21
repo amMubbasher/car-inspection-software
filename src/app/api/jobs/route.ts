@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       jobCount: counter.value,
       createdBy: user._id,
       price,
-      paymentMethod: needsPaymentMethod(price) ? data.paymentMethod : null,
+      paymentMethod: data.paymentMethod ?? null,
     };
     
     const newJob = await Job.create(jobData);

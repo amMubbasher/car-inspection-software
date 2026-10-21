@@ -8,11 +8,13 @@ export function PaymentMethodSelect({
   value,
   onChange,
   className,
+  required = false,
 }: {
   id?: string;
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  required?: boolean;
 }) {
   return (
     <select
@@ -20,7 +22,7 @@ export function PaymentMethodSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={className}
-      required
+      required={required}
     >
       <option value="">Select Payment Method</option>
       {PAYMENT_METHODS.map((option) => (

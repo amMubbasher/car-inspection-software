@@ -133,7 +133,7 @@ export default function EditJobPage() {
       odometer: form.odometer,
       inspectionType: form.inspectionType,
       price: form.price ?? 0,
-      paymentMethod: needsPaymentMethod(form.price) ? form.paymentMethod : null,
+      paymentMethod: form.paymentMethod || null,
       inspectionTabs: form.inspectionTabs,
     };
     const res = await fetch(`/api/jobs/${id}`, {
@@ -261,25 +261,24 @@ export default function EditJobPage() {
                 setForm({
                   ...form,
                   price,
-                  paymentMethod: needsPaymentMethod(price) ? form.paymentMethod : "",
                 });
               }}
               className={fieldClass}
               translate="no"
             />
           </div>
-          {needsPaymentMethod(form.price) && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Payment Method <span className="text-red-500">*</span>
-              </label>
-              <PaymentMethodSelect
-                value={form.paymentMethod ?? ""}
-                onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
-                className={fieldClass}
-              />
-            </div>
-          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Payment Method{" "}
+                {needsPaymentMethod(form.price) && <span className="text-red-500">*</span>}
+            </label>
+            <PaymentMethodSelect
+              value={form.paymentMethod ?? ""}
+              required={needsPaymentMethod(form.price)}
+              onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+              className={fieldClass}
+            />
+          </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Inspection Type</label>
             <select

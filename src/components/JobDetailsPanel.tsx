@@ -227,7 +227,7 @@ export default function JobDetailsPanel({
           inspectionType: formData.inspectionType,
           odometer: formData.odometer,
           price: formData.price ?? 0,
-          paymentMethod: needsPaymentMethod(formData.price) ? formData.paymentMethod : null,
+          paymentMethod: formData.paymentMethod || null,
           inspectionTabs: formData.inspectionTabs,
         }),
       });
@@ -359,13 +359,11 @@ export default function JobDetailsPanel({
               value={job.odometer != null ? String(job.odometer) : "-"}
             />
             <DetailRow icon={<DollarSign className="h-4 w-4" />} label="Price" value={String(job.price ?? 0)} />
-            {needsPaymentMethod(job.price) && (
-              <DetailRow
-                icon={<CreditCard className="h-4 w-4" />}
-                label="Payment Method"
-                value={paymentMethodLabel(job.paymentMethod) || "-"}
-              />
-            )}
+            <DetailRow
+              icon={<CreditCard className="h-4 w-4" />}
+              label="Payment Method"
+              value={paymentMethodLabel(job.paymentMethod) || "-"}
+            />
             <DetailRow
               icon={<Sparkles className="h-4 w-4" />}
               label="Inspection Type"
@@ -571,23 +569,23 @@ export default function JobDetailsPanel({
                       setFormData({
                         ...formData,
                         price,
-                        paymentMethod: needsPaymentMethod(price) ? formData.paymentMethod : "",
                       });
                     }}
                     placeholder="0"
                   />
                 </div>
-                {needsPaymentMethod(formData.price) && (
-                  <div className="space-y-2">
-                    <Label htmlFor="panel-paymentMethod">Payment Method *</Label>
-                    <PaymentMethodSelect
-                      id="panel-paymentMethod"
-                      value={formData.paymentMethod}
-                      onChange={(paymentMethod) => setFormData({ ...formData, paymentMethod })}
-                      className="w-full rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="panel-paymentMethod">
+                    Payment Method{needsPaymentMethod(formData.price) ? " *" : ""}
+                  </Label>
+                  <PaymentMethodSelect
+                    id="panel-paymentMethod"
+                    required={needsPaymentMethod(formData.price)}
+                    value={formData.paymentMethod}
+                    onChange={(paymentMethod) => setFormData({ ...formData, paymentMethod })}
+                    className="w-full rounded-md border border-gray-300 bg-white p-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="panel-inspectionType">Inspection Type *</Label>
                   <select

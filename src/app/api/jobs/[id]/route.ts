@@ -88,7 +88,6 @@ export async function PATCH(req: Request, { params }: Params) {
       if (needsPaymentMethod(price) && !method) {
         return NextResponse.json({ error: PAYMENT_METHOD_REQUIRED }, { status: 400 });
       }
-      updatePayload.paymentMethod = needsPaymentMethod(price) ? method : null;
     }
 
     const filter: Record<string, unknown> = { _id: jobId, ...scope };

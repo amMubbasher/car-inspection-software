@@ -14,7 +14,7 @@ export function paymentMethodLabel(value: string | null | undefined) {
   return PAYMENT_METHODS.find((option) => option.value === value)?.label ?? value;
 }
 
-/** A payment method is required whenever the job has a price. */
+/** The payment method is optional, but required once the job has a price. */
 export function needsPaymentMethod(price: number | null | undefined) {
   return (Number(price) || 0) > 0;
 }
