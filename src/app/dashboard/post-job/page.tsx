@@ -7,11 +7,15 @@ import { Loader2 } from "lucide-react";
 import { inspectionTabs } from "@/config/inspectionTabs";
 import { needsPaymentMethod } from "@/config/paymentMethods";
 import { PaymentMethodSelect } from "@/components/PaymentMethodSelect";
+import { usePermissions } from "@/components/rbac/PermissionsProvider";
 import type { Job, Severity, InspectionType } from "@/types/job";
 // import Image from "next/image";
 
 export default function PostJobPage() {
   const router = useRouter();
+  const { can } = usePermissions();
+  const canMarkPayment = can("jobs.mark_payment");
+  const [paymentReceived, setPaymentReceived] = useState(false);
   const [activeTab, setActiveTab] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -136,6 +140,7 @@ export default function PostJobPage() {
         paymentMethod: form.paymentMethod || null,
         inspectionTabs: form.inspectionTabs,
         status: "pending",
+        ...(canMarkPayment && paymentReceived && { paymentReceived: true }),
       };
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -273,6 +278,34 @@ export default function PostJobPage() {
                 <option value="Comprehensive Inspection">Comprehensive Inspection</option>
               </select>
             </div>
+            {canMarkPayment && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 md:col-span-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Payment Received
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Marks the payment as received by you
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={paymentReceived}
+                  aria-label="Payment received"
+                  onClick={() => setPaymentReceived((value) => !value)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                    paymentReceived ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      paymentReceived ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
           </div>
           {submitError && (
             <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">

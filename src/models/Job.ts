@@ -40,6 +40,9 @@ const JobSchema = new Schema(
     // Allowed values live in src/config/paymentMethods.json and are checked by the API,
     // so removing an option later never invalidates old jobs.
     paymentMethod: { type: String, trim: true, default: null },
+    // Set on creation or through PATCH /api/jobs/[id]/payment (jobs.mark_payment / jobs.undo_payment).
+    paymentReceivedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    paymentReceivedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

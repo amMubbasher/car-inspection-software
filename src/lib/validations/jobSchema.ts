@@ -31,6 +31,8 @@ export const jobSchema = z.object({
   inspectionTabs: z.array(inspectionTabSchema),
   price: z.coerce.number().min(0).optional().default(0),
   paymentMethod: paymentMethodSchema.nullable().optional(),
+  // Marks the payment as received by the creator (needs jobs.mark_payment).
+  paymentReceived: z.boolean().optional(),
   status: z.enum(["pending", "in_progress", "completed", "rejected"]).optional(),
 });
 

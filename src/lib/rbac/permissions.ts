@@ -20,6 +20,8 @@ export const PERMISSION_CATALOG = [
   { key: "jobs.review", group: "jobs", label: "Review jobs", description: "Accept or reject completed jobs" },
   { key: "jobs.download_pdf", group: "jobs", label: "Download reports", description: "Download inspection PDF reports" },
   { key: "jobs.download_receipt", group: "jobs", label: "Download receipts", description: "Download receipts that include the price" },
+  { key: "jobs.mark_payment", group: "jobs", label: "Mark payment received", description: "Mark an order's payment as received" },
+  { key: "jobs.undo_payment", group: "jobs", label: "Undo payment received", description: "Clear an order's payment received status" },
   { key: "jobs.filter_by_user", group: "jobs", label: "Filter by inspector", description: "Filter the job list by inspector" },
   { key: "reports.export", group: "reports", label: "Export reports", description: "Export job totals per inspector" },
   { key: "users.view", group: "users", label: "View users", description: "Open the users page" },

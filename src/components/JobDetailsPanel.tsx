@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePermissions } from "@/components/rbac/PermissionsProvider";
 import {
+  BadgeCheck,
   Car,
   Check,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
   Phone,
   Sparkles,
   Trash2,
+  Undo2,
   User,
   UserPlus,
   X,
@@ -64,6 +66,20 @@ export function JobStatusBadge({ status }: { status: Job["status"] }) {
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {statusLabel(status)}
+    </span>
+  );
+}
+
+export function PaymentBadge({ received }: { received: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+        received
+          ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+      }`}
+    >
+      {received ? "Paid" : "Unpaid"}
     </span>
   );
 }
@@ -151,6 +167,9 @@ export default function JobDetailsPanel({
   const canEdit = can("jobs.edit");
   const canInspect = can("jobs.inspect");
   const canReview = can("jobs.review");
+  const canMarkPayment = can("jobs.mark_payment");
+  const canUndoPayment = can("jobs.undo_payment");
+  const [isMarkingPayment, setIsMarkingPayment] = useState(false);
   const isAssignedToMe =
     !!job.assignedTo && typeof job.assignedTo === "object" && job.assignedTo._id === me?.user._id;
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -177,6 +196,13 @@ export default function JobDetailsPanel({
       ? job.assignedTo.name?.trim() || job.assignedTo.email
       : "";
   const createdByLabel = job.createdBy?.name || job.createdBy?.email || "-";
+  const paymentReceived = !!job.paymentReceivedBy;
+  const paymentReceivedAt = formatJobDate(job.paymentReceivedAt ?? undefined);
+  const paymentReceivedLabel = job.paymentReceivedBy
+    ? `${job.paymentReceivedBy.name?.trim() || job.paymentReceivedBy.email}${
+        job.paymentReceivedAt ? ` · ${paymentReceivedAt.date}, ${paymentReceivedAt.time}` : ""
+      }`
+    : "Not received";
 
   const openStartInspection = () => {
     const mergedTabs = tabsForType(job.inspectionType || "", job.inspectionTabs || []);
@@ -256,6 +282,27 @@ export default function JobDetailsPanel({
   const handleComplete = async () => {
     const res = await fetch(`/api/jobs/${job._id}/complete`, { method: "PATCH" });
     if (res.ok) refreshJobs();
+  };
+
+  const handlePayment = async (received: boolean) => {
+    if (!received && !confirm("Undo payment received for this job?")) return;
+    setIsMarkingPayment(true);
+    try {
+      const res = await fetch(`/api/jobs/${job._id}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ received }),
+      });
+      if (res.ok) {
+        refreshJobs();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert("Error: " + (data?.error || "Something went wrong"));
+        refreshJobs();
+      }
+    } finally {
+      setIsMarkingPayment(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -365,6 +412,11 @@ export default function JobDetailsPanel({
               value={paymentMethodLabel(job.paymentMethod) || "-"}
             />
             <DetailRow
+              icon={<BadgeCheck className="h-4 w-4" />}
+              label="Payment Received By"
+              value={paymentReceivedLabel}
+            />
+            <DetailRow
               icon={<Sparkles className="h-4 w-4" />}
               label="Inspection Type"
               value={job.inspectionType || "-"}
@@ -470,6 +522,29 @@ export default function JobDetailsPanel({
                 Complete
               </button>
             )}
+            {paymentReceived
+              ? canUndoPayment && (
+                <button
+                  type="button"
+                  onClick={() => handlePayment(false)}
+                  disabled={isMarkingPayment}
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                  <Undo2 className="h-4 w-4" />
+                  Undo Payment Received
+                </button>
+              )
+              : canMarkPayment && (
+                <button
+                  type="button"
+                  onClick={() => handlePayment(true)}
+                  disabled={isMarkingPayment}
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-green-500 disabled:opacity-50"
+                >
+                  <BadgeCheck className="h-4 w-4" />
+                  Payment Received
+                </button>
+              )}
             {canReview && ["completed", "accepted", "rejected"].includes(job.status) && (
               <>
                 <button

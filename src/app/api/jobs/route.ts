@@ -6,7 +6,14 @@ import { jobSchema, PAYMENT_METHOD_REQUIRED } from "@/lib/validations/jobSchema"
 import { needsPaymentMethod } from "@/config/paymentMethods";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
-import { can, requirePermission, requireUser, routeError } from "@/lib/rbac/server";
+import {
+  audit,
+  AuthError,
+  can,
+  requirePermission,
+  requireUser,
+  routeError,
+} from "@/lib/rbac/server";
 import { jobScope } from "@/lib/rbac/jobs";
 import { serializeJob, serializeJobs } from "@/lib/serializeJob";
 
@@ -67,6 +74,9 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (parsed.data.paymentReceived && !can(user, "jobs.mark_payment")) {
+      throw new AuthError(403, "You do not have permission to mark payments as received");
+    }
     
     const creator = await User.findById(user._id).select("name email");
     if (!creator) {
@@ -84,7 +94,7 @@ export async function POST(req: Request) {
 
     // Status is never client-controlled on creation.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { status: _status, ...data } = parsed.data;
+    const { status: _status, paymentReceived, ...data } = parsed.data;
     const price = Math.max(0, Number(data.price) || 0);
     if (needsPaymentMethod(price) && !data.paymentMethod) {
       return NextResponse.json({ error: PAYMENT_METHOD_REQUIRED }, { status: 400 });
@@ -97,9 +107,21 @@ export async function POST(req: Request) {
       createdBy: user._id,
       price,
       paymentMethod: data.paymentMethod ?? null,
+      ...(paymentReceived && {
+        paymentReceivedBy: user._id,
+        paymentReceivedAt: new Date(),
+      }),
     };
     
     const newJob = await Job.create(jobData);
+    if (paymentReceived) {
+      await audit(user, {
+        action: "job.payment_received",
+        targetType: "job",
+        targetId: newJob._id,
+        after: { paymentReceivedBy: user._id },
+      });
+    }
     return NextResponse.json(serializeJob(newJob), { status: 201 });
   } catch (error) {
     return routeError(error, "Job creation failed");
@@ -147,6 +169,7 @@ export async function GET(req: Request) {
     const jobs = await Job.find(query)
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
+      .populate("paymentReceivedBy", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);

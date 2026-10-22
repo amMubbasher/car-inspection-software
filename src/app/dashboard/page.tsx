@@ -24,6 +24,7 @@ import { UserAutocomplete } from "@/components/UserAutocomplete";
 import JobDetailsPanel, {
   formatJobDate,
   JobStatusBadge,
+  PaymentBadge,
 } from "@/components/JobDetailsPanel";
 import { NoTranslate } from "@/components/ui/NoTranslate";
 import { localDayBound } from "@/lib/localDay";
@@ -272,7 +273,10 @@ export default function Dashboard() {
                                 <NoTranslate as="span" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
                                   {job.carNumber}
                                 </NoTranslate>
-                                <JobStatusBadge status={job.status} />
+                                <span className="flex shrink-0 items-center gap-1">
+                                  <JobStatusBadge status={job.status} />
+                                  <PaymentBadge received={!!job.paymentReceivedBy} />
+                                </span>
                               </span>
                               {job.customerPhone && (
                                 <NoTranslate as="span" className="mt-0.5 block truncate text-xs text-gray-400">
@@ -359,7 +363,10 @@ export default function Dashboard() {
                               <p className="text-xs text-gray-400">{when.time}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <JobStatusBadge status={job.status} />
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <JobStatusBadge status={job.status} />
+                                <PaymentBadge received={!!job.paymentReceivedBy} />
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-gray-300">
                               <ChevronRight className="h-4 w-4" />

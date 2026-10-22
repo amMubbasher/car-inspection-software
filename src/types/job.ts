@@ -45,6 +45,12 @@ export interface Job {
   rejectionNote?: string;
   price?: number;
   paymentMethod?: string | null;
+  paymentReceivedBy?: {
+    _id: string;
+    email: string;
+    name?: string;
+  } | null;
+  paymentReceivedAt?: string | null;
   inspectionTabs: InspectionTab[];
   createdAt?: string;
   updatedAt?: string;

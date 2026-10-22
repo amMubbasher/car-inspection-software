@@ -31,7 +31,8 @@ export async function GET(_req: Request, { params }: Params) {
     await connectToDB();
     const job = await Job.findOne({ _id: id, ...scope })
       .populate("assignedTo", "name email")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "name email")
+      .populate("paymentReceivedBy", "name email");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
