@@ -4,7 +4,7 @@ import { Schema, model, models, Model, Types } from "mongoose";
 export interface IAuditLog {
   actorId: Types.ObjectId;
   action: string;
-  targetType: "user" | "role" | "job";
+  targetType: "user" | "role" | "job" | "vat";
   targetId?: Types.ObjectId | null;
   before?: unknown;
   after?: unknown;
@@ -16,7 +16,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
   {
     actorId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     action: { type: String, required: true },
-    targetType: { type: String, enum: ["user", "role", "job"], required: true },
+    targetType: { type: String, enum: ["user", "role", "job", "vat"], required: true },
     targetId: { type: Schema.Types.ObjectId, default: null, index: true },
     before: { type: Schema.Types.Mixed },
     after: { type: Schema.Types.Mixed },

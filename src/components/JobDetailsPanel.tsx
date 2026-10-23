@@ -10,10 +10,12 @@ import {
   CreditCard,
   DollarSign,
   Download,
+  FileText,
   Gauge,
   Hash,
   Pencil,
   Phone,
+  Receipt,
   Sparkles,
   Trash2,
   Undo2,
@@ -39,10 +41,12 @@ import { PaymentMethodSelect } from "@/components/PaymentMethodSelect";
 import { getSelectedLocale } from "@/lib/countryToLocale";
 import type { InspectionTab, InspectionType, Job } from "@/types/job";
 
-function jobPdfUrl(jobId: string, receipt = false): string {
+type PdfKind = "report" | "receipt" | "report_receipt";
+
+function jobPdfUrl(jobId: string, type: PdfKind = "report"): string {
   const params = new URLSearchParams();
   params.set("locale", getSelectedLocale());
-  if (receipt) params.set("receipt", "1");
+  params.set("type", type);
   return `/api/pdf/${jobId}?${params.toString()}`;
 }
 
@@ -101,7 +105,7 @@ export function formatJobDate(dateString?: string) {
 }
 
 type FormState = {
-  carNumber: string;
+  carName: string;
   customerPhone: string;
   engineNumber: string;
   inspectionType: InspectionType | "";
@@ -172,6 +176,8 @@ export default function JobDetailsPanel({
   const [isMarkingPayment, setIsMarkingPayment] = useState(false);
   const isAssignedToMe =
     !!job.assignedTo && typeof job.assignedTo === "object" && job.assignedTo._id === me?.user._id;
+  const canDownloadReceipt = can("jobs.download_pdf") && can("jobs.download_receipt");
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectionNote, setRejectionNote] = useState("");
   const [isReviewing, setIsReviewing] = useState(false);
@@ -180,7 +186,7 @@ export default function JobDetailsPanel({
   const [activeTab, setActiveTab] = useState("");
   const prevInspectionTypeRef = useRef<InspectionType | "">("");
   const [formData, setFormData] = useState<FormState>({
-    carNumber: job.carNumber || "",
+    carName: job.carName || "",
     customerPhone: job.customerPhone || "",
     engineNumber: job.engineNumber || "",
     inspectionType: job.inspectionType || "",
@@ -207,7 +213,7 @@ export default function JobDetailsPanel({
   const openStartInspection = () => {
     const mergedTabs = tabsForType(job.inspectionType || "", job.inspectionTabs || []);
     setFormData({
-      carNumber: job.carNumber || "",
+      carName: job.carName || "",
       customerPhone: job.customerPhone || "",
       engineNumber: job.engineNumber || "",
       inspectionType: job.inspectionType || "",
@@ -232,8 +238,8 @@ export default function JobDetailsPanel({
   }, [formData.inspectionType, isDialogOpen]);
 
   const handleUpdateAndStart = async () => {
-    if (!formData.carNumber || !formData.inspectionType) {
-      alert("Please fill in all required fields (Car Number and Inspection Type)");
+    if (!formData.carName || !formData.inspectionType) {
+      alert("Please fill in all required fields (Car Name and Inspection Type)");
       return;
     }
     if (needsPaymentMethod(formData.price) && !formData.paymentMethod) {
@@ -247,7 +253,7 @@ export default function JobDetailsPanel({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          carNumber: formData.carNumber,
+          carName: formData.carName,
           customerPhone: formData.customerPhone,
           engineNumber: formData.engineNumber,
           inspectionType: formData.inspectionType,
@@ -303,6 +309,17 @@ export default function JobDetailsPanel({
     } finally {
       setIsMarkingPayment(false);
     }
+  };
+
+  const openPdf = (type: PdfKind) => {
+    setDownloadOpen(false);
+    window.open(jobPdfUrl(job._id, type), "_blank");
+  };
+
+  // Users who can't download receipts get the report straight away.
+  const handleDownloadPdf = () => {
+    if (canDownloadReceipt) setDownloadOpen(true);
+    else openPdf("report");
   };
 
   const handleDelete = async () => {
@@ -362,7 +379,7 @@ export default function JobDetailsPanel({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <NoTranslate as="p" className="truncate text-lg font-semibold text-gray-900 dark:text-white">
-                  {job.carNumber}
+                  {job.carName}
                 </NoTranslate>
                 <JobStatusBadge status={job.status} />
               </div>
@@ -397,7 +414,7 @@ export default function JobDetailsPanel({
                 </button>
               )}
             </div>
-            <DetailRow icon={<Car className="h-4 w-4" />} label="Car Number" value={job.carNumber || "-"} />
+            <DetailRow icon={<Car className="h-4 w-4" />} label="Car Name" value={job.carName || "-"} />
             <DetailRow icon={<Phone className="h-4 w-4" />} label="Customer Phone" value={job.customerPhone || "-"} />
             <DetailRow icon={<Hash className="h-4 w-4" />} label="Chassis Number" value={job.engineNumber || "-"} />
             <DetailRow
@@ -463,17 +480,17 @@ export default function JobDetailsPanel({
                 {can("jobs.download_pdf") && (
                 <button
                   type="button"
-                  onClick={() => window.open(jobPdfUrl(job._id), "_blank")}
+                  onClick={handleDownloadPdf}
                   className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-3 py-2.5 text-sm font-medium text-white hover:bg-gray-700"
                 >
                   <Download className="h-4 w-4" />
                   Download PDF
                 </button>
                 )}
-                {can("jobs.download_pdf") && can("jobs.download_receipt") && (
+                {canDownloadReceipt && (
                 <button
                   type="button"
-                  onClick={() => window.open(jobPdfUrl(job._id, true), "_blank")}
+                  onClick={() => openPdf("receipt")}
                   className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
                 >
                   <Download className="h-4 w-4" />
@@ -571,6 +588,47 @@ export default function JobDetailsPanel({
         </div>
       </aside>
 
+      <Dialog open={downloadOpen} onOpenChange={setDownloadOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Download PDF</DialogTitle>
+            <DialogDescription>Choose what to include in the PDF.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <button
+              type="button"
+              onClick={() => openPdf("report_receipt")}
+              className="flex items-start gap-3 rounded-xl border border-gray-200 p-4 text-left hover:border-indigo-400 hover:bg-indigo-50/60 dark:border-gray-700 dark:hover:bg-indigo-500/10"
+            >
+              <Receipt className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+              <span>
+                <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                  Report + Receipt
+                </span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  Inspection report with the receipt on the last page
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => openPdf("report")}
+              className="flex items-start gap-3 rounded-xl border border-gray-200 p-4 text-left hover:border-indigo-400 hover:bg-indigo-50/60 dark:border-gray-700 dark:hover:bg-indigo-500/10"
+            >
+              <FileText className="mt-0.5 h-5 w-5 shrink-0 text-gray-600 dark:text-gray-300" />
+              <span>
+                <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                  Report
+                </span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  Inspection report only, without prices
+                </span>
+              </span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl border-gray-200 p-0 dark:border-gray-800 sm:max-w-4xl">
           <DialogHeader className="border-b border-gray-100 px-5 py-4 dark:border-gray-800">
@@ -585,14 +643,14 @@ export default function JobDetailsPanel({
               <h3 className="text-sm font-semibold">Basic Information</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="panel-carNumber">Car Number *</Label>
+                  <Label htmlFor="panel-carName">Car Name *</Label>
                   <Input
-                    id="panel-carNumber"
+                    id="panel-carName"
                     className="notranslate"
                     translate="no"
-                    value={formData.carNumber}
-                    onChange={(e) => setFormData({ ...formData, carNumber: e.target.value })}
-                    placeholder="Enter car number"
+                    value={formData.carName}
+                    onChange={(e) => setFormData({ ...formData, carName: e.target.value })}
+                    placeholder="Enter car name"
                   />
                 </div>
                 <div className="space-y-2">

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "rbac:seed": "tsx scripts/seed-rbac.ts"
+    "rbac:seed": "tsx scripts/seed-rbac.ts",
+    "migrate:car-name": "tsx scripts/migrate-car-name.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",

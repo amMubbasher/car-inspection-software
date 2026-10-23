@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
-import { Car, UserCog, Users, ShieldCheck, Menu, X, LogOut } from 'lucide-react';
+import { Car, UserCog, Users, ShieldCheck, Menu, X, LogOut, Percent } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { usePermissions } from '@/components/rbac/PermissionsProvider';
 import type { Permission } from '@/lib/rbac/permissions';
@@ -90,6 +90,7 @@ export default function Navbar() {
     { href: '/dashboard/post-job', label: 'Post Job', icon: Car, permission: 'jobs.create' },
     { href: '/dashboard/users', label: 'Users', icon: Users, permission: 'users.view' },
     { href: '/dashboard/roles', label: 'Roles', icon: ShieldCheck, permission: 'roles.view' },
+    { href: '/dashboard/vat', label: 'VAT', icon: Percent, permission: 'vat.view' },
   ];
   const visibleLinks = navLinks.filter((link) => !link.permission || can(link.permission));
 

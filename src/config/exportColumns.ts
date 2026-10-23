@@ -4,7 +4,7 @@
 export const EXPORT_COLUMNS = [
   { key: "jobNumber", label: "Job #" },
   { key: "createdAt", label: "Date" },
-  { key: "carNumber", label: "Car Number" },
+  { key: "carName", label: "Car Name" },
   { key: "customerName", label: "Customer Name" },
   { key: "customerPhone", label: "Customer Number" },
   { key: "chassisNumber", label: "Chassis Number" },
@@ -26,7 +26,7 @@ export const EXPORT_COLUMN_KEYS: readonly ExportColumnKey[] = EXPORT_COLUMNS.map
 export const DEFAULT_EXPORT_COLUMNS: readonly ExportColumnKey[] = [
   "jobNumber",
   "createdAt",
-  "carNumber",
+  "carName",
   "customerName",
   "customerPhone",
   "chassisNumber",
@@ -42,9 +42,16 @@ export function isExportColumn(value: unknown): value is ExportColumnKey {
   return typeof value === "string" && (EXPORT_COLUMN_KEYS as readonly string[]).includes(value);
 }
 
+/** Old column keys that were renamed; saved selections still use them. */
+const RENAMED_COLUMNS: Record<string, ExportColumnKey> = { carNumber: "carName" };
+
 /** Keeps known keys only, in catalog order. */
 export function normalizeExportColumns(values: readonly unknown[]): ExportColumnKey[] {
-  const wanted = new Set(values.filter(isExportColumn));
+  const wanted = new Set(
+    values
+      .map((value) => (typeof value === "string" ? RENAMED_COLUMNS[value] ?? value : value))
+      .filter(isExportColumn)
+  );
   return EXPORT_COLUMN_KEYS.filter((key) => wanted.has(key));
 }
 

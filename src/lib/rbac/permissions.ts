@@ -6,6 +6,7 @@ export const PERMISSION_GROUPS = [
   { key: "reports", label: "Reports" },
   { key: "users", label: "Users" },
   { key: "roles", label: "Roles" },
+  { key: "vat", label: "VAT" },
 ] as const;
 
 export type PermissionGroup = (typeof PERMISSION_GROUPS)[number]["key"];
@@ -34,6 +35,8 @@ export const PERMISSION_CATALOG = [
   { key: "roles.create", group: "roles", label: "Create roles", description: "Create new roles" },
   { key: "roles.edit", group: "roles", label: "Edit roles", description: "Change a role's name and permissions" },
   { key: "roles.delete", group: "roles", label: "Delete roles", description: "Delete custom roles" },
+  { key: "vat.view", group: "vat", label: "View VAT", description: "Open the VAT page" },
+  { key: "vat.manage", group: "vat", label: "Manage VAT", description: "Add, edit, delete and activate VAT records" },
 ] as const satisfies readonly {
   key: string;
   group: PermissionGroup;
@@ -60,6 +63,7 @@ export function isPermission(value: unknown): value is Permission {
  */
 export const PERMISSION_IMPLIES: Partial<Record<Permission, readonly Permission[]>> = {
   "jobs.view_all": ["jobs.view_own"],
+  "vat.manage": ["vat.view"],
 };
 
 /** Permissions that include `permission` (the reverse of PERMISSION_IMPLIES). */

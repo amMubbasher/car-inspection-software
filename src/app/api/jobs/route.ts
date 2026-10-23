@@ -2,6 +2,8 @@ import { connectToDB } from "@/lib/db";
 import { Job } from "@/models/Job";
 import { User } from "@/models/User";
 import { Counter } from "@/models/Counter";
+import { Vat } from "@/models/Vat";
+import { toVatSnapshot } from "@/lib/vat";
 import { jobSchema, PAYMENT_METHOD_REQUIRED } from "@/lib/validations/jobSchema";
 import { needsPaymentMethod } from "@/config/paymentMethods";
 import { NextResponse } from "next/server";
@@ -29,13 +31,14 @@ function parseFilterDate(value: string | null, endOfDay: boolean) {
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Matches car number, chassis, customer phone (ignoring spaces/dashes) or inspector name/email. */
+/** Matches car name, chassis, customer phone (ignoring spaces/dashes) or inspector name/email. */
 async function searchClause(raw: string) {
   const term = raw.trim().slice(0, 100);
   if (!term) return null;
   const regex = new RegExp(escapeRegex(term), "i");
   const or: Record<string, unknown>[] = [
-    { carNumber: regex },
+    { carName: regex },
+    { carNumber: regex }, // jobs not yet migrated by scripts/migrate-car-name.ts
     { engineNumber: regex },
     { customerPhone: regex },
   ];
@@ -99,8 +102,10 @@ export async function POST(req: Request) {
     if (needsPaymentMethod(price) && !data.paymentMethod) {
       return NextResponse.json({ error: PAYMENT_METHOD_REQUIRED }, { status: 400 });
     }
+    const activeVat = await Vat.findOne({ isActive: true }).lean();
     const jobData = {
       ...data,
+      vat: toVatSnapshot(activeVat),
       status: "pending",
       customerName: inspectorName,
       jobCount: counter.value,

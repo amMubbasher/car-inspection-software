@@ -271,7 +271,7 @@ export default function Dashboard() {
                             <span className="min-w-0 flex-1">
                               <span className="flex items-start justify-between gap-2">
                                 <NoTranslate as="span" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                  {job.carNumber}
+                                  {job.carName}
                                 </NoTranslate>
                                 <span className="flex shrink-0 items-center gap-1">
                                   <JobStatusBadge status={job.status} />
@@ -302,7 +302,7 @@ export default function Dashboard() {
                   <table className="w-full min-w-[760px] text-left">
                     <thead>
                       <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-400 dark:border-gray-800">
-                        <th className="px-4 py-3 font-medium">Car Number</th>
+                        <th className="px-4 py-3 font-medium">Car Name</th>
                         <th className="px-4 py-3 font-medium">Inspector</th>
                         <th className="px-4 py-3 font-medium">Inspection Type</th>
                         <th className="px-4 py-3 font-medium">Date & Time</th>
@@ -331,7 +331,7 @@ export default function Dashboard() {
                                 </span>
                                 <div className="min-w-0">
                                   <NoTranslate as="p" className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                    {job.carNumber}
+                                    {job.carName}
                                   </NoTranslate>
                                   {job.customerPhone && (
                                     <NoTranslate as="p" className="truncate text-xs text-gray-400">

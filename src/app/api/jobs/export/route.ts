@@ -1,3 +1,4 @@
+import { carNameOf } from "@/lib/serializeJob";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { requirePermission, routeError } from "@/lib/rbac/server";
@@ -19,7 +20,7 @@ type Person = { name?: string; email?: string } | null | undefined;
 type ExportJob = {
   jobCount?: number;
   createdAt?: Date;
-  carNumber?: string;
+  carName?: string;
   customerName?: string;
   customerPhone?: string;
   engineNumber?: string;
@@ -42,7 +43,7 @@ function cell(job: ExportJob, key: ExportColumnKey): string | number | null {
   switch (key) {
     case "jobNumber": return job.jobCount ?? null;
     case "createdAt": return job.createdAt ? job.createdAt.toISOString() : null;
-    case "carNumber": return job.carNumber ?? "";
+    case "carName": return carNameOf(job);
     case "customerName": return job.customerName ?? "";
     case "customerPhone": return job.customerPhone ?? "";
     case "chassisNumber": return job.engineNumber ? job.engineNumber.toUpperCase() : "";

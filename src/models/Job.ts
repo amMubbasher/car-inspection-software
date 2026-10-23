@@ -18,7 +18,7 @@ const InspectionTabSchema = new Schema({
 const JobSchema = new Schema(
   {
     jobCount: { type: Number, required: true, unique: true },
-    carNumber: { type: String, required: true },
+    carName: { type: String, required: true },
     customerName: { type: String, required: true },
     customerPhone: { type: String, trim: true },
     odometer: { type: Number },
@@ -43,6 +43,14 @@ const JobSchema = new Schema(
     // Set on creation or through PATCH /api/jobs/[id]/payment (jobs.mark_payment / jobs.undo_payment).
     paymentReceivedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     paymentReceivedAt: { type: Date, default: null },
+    // Copy of the active VAT when the job was created, so later VAT changes never alter old receipts.
+    vat: {
+      type: new Schema(
+        { name: String, registrationNumber: String, percentage: Number },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 );

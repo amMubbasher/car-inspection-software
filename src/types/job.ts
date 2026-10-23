@@ -22,10 +22,16 @@ export interface InspectionTab {
   subIssues: SubIssue[];
 }
 
+export interface VatSnapshot {
+  name: string;
+  registrationNumber: string;
+  percentage: number;
+}
+
 export interface Job {
   _id: string;
   jobCount: number;
-  carNumber: string;
+  carName: string;
   customerName: string;
   customerPhone?: string;
   engineNumber?: string;
@@ -51,6 +57,7 @@ export interface Job {
     name?: string;
   } | null;
   paymentReceivedAt?: string | null;
+  vat?: VatSnapshot | null;
   inspectionTabs: InspectionTab[];
   createdAt?: string;
   updatedAt?: string;

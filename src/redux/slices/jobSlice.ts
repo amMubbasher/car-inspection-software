@@ -3,7 +3,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 interface Job {
   _id: string;
   jobCount: number;
-  carNumber: string;
+  carName: string;
   customerName: string;
   status: string;
   [key: string]: unknown;

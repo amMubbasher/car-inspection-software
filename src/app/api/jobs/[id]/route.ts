@@ -146,7 +146,7 @@ export async function DELETE(_req: Request, { params }: Params) {
       action: "job.delete",
       targetType: "job",
       targetId: deletedJob._id,
-      before: { jobCount: deletedJob.jobCount, carNumber: deletedJob.carNumber },
+      before: { jobCount: deletedJob.jobCount, carName: deletedJob.carName },
     });
 
     return NextResponse.json({ message: "Job deleted successfully" });

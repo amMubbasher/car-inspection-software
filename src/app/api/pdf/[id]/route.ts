@@ -9,7 +9,9 @@ import {
   routeError,
 } from "@/lib/rbac/server";
 import { jobScope } from "@/lib/rbac/jobs";
-import { generateJobPDF } from "@/lib/pdf";
+import { buildReceiptData, generateJobPDF, generateReceiptPDF } from "@/lib/pdf";
+import { Vat } from "@/models/Vat";
+import { toVatSnapshot } from "@/lib/vat";
 import { getLocaleFromRequest } from "@/lib/translate";
 import { processCarDiagramPng } from "@/lib/carDiagram";
 import type { Job as JobType } from "@/types/job";
@@ -18,6 +20,25 @@ import { join } from "path";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+type PdfKind = "report" | "receipt" | "report_receipt";
+
+/** `type=report|receipt|report_receipt`; the older `receipt=1` still means receipt. */
+function pdfKind(searchParams: URLSearchParams): PdfKind {
+  const type = searchParams.get("type");
+  if (type === "receipt" || type === "report_receipt") return type;
+  if (searchParams.get("receipt") === "1") return "receipt";
+  return "report";
+}
+
+async function readPublicFile(...segments: string[]): Promise<Uint8Array | undefined> {
+  try {
+    return new Uint8Array(await readFile(join(process.cwd(), ...segments)));
+  } catch (e) {
+    console.warn(`[pdf] ${segments.join("/")} load failed:`, e instanceof Error ? e.message : e);
+    return undefined;
+  }
+}
 
 export async function GET(
   req: Request,
@@ -29,15 +50,16 @@ export async function GET(
   try {
     const user = await requirePermission("jobs.download_pdf");
     const scope = jobScope(user);
-    const receipt = new URL(req.url).searchParams.get("receipt") === "1";
-    if (receipt && !can(user, "jobs.download_receipt")) {
+    const kind = pdfKind(new URL(req.url).searchParams);
+    const wantsReceipt = kind !== "report";
+    if (wantsReceipt && !can(user, "jobs.download_receipt")) {
       throw new AuthError(403, "You do not have permission to download receipts");
     }
 
     const { id } = await params;
     assertObjectId(id, "Job");
     jobId = id;
-    console.log(`[pdf] request id=${id}`);
+    console.log(`[pdf] request id=${id} type=${kind}`);
     await connectToDB();
     const job = await Job.findOne({ _id: id, ...scope })
       .populate("assignedTo", "name email")
@@ -48,38 +70,44 @@ export async function GET(
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    let bannerBytes: Uint8Array | undefined;
-    let carDiagramBytes: Uint8Array | undefined;
-    try {
-      const bannerPath = join(process.cwd(), "public", "report-banner.jpeg");
-      const bannerBuffer = await readFile(bannerPath);
-      bannerBytes = new Uint8Array(bannerBuffer);
-    } catch (e) {
-      console.warn(`[pdf] banner load failed:`, e instanceof Error ? e.message : e);
+    const jobData = job as unknown as JobType;
+    let receipt = null;
+    if (wantsReceipt) {
+      // Jobs created before VAT was recorded on each job use the currently active VAT.
+      const fallbackVat = jobData.vat
+        ? null
+        : toVatSnapshot(await Vat.findOne({ isActive: true }).lean());
+      receipt = buildReceiptData(jobData, {
+        fallbackVat,
+        logoBytes: await readPublicFile("public", "receipt-logo.png"),
+      });
     }
 
-    try {
-      const diagramPath = join(process.cwd(), "public", "car-diagram.png");
-      const diagramBuffer = await readFile(diagramPath);
-      carDiagramBytes = await processCarDiagramPng(new Uint8Array(diagramBuffer));
-    } catch (e) {
-      console.warn(`[pdf] diagram load failed:`, e instanceof Error ? e.message : e);
+    let pdfBytes: Uint8Array;
+    if (kind === "receipt") {
+      pdfBytes = await generateReceiptPDF(receipt!);
+    } else {
+      const bannerBytes = await readPublicFile("public", "report-banner.jpeg");
+      const diagramBytes = await readPublicFile("public", "car-diagram.png");
+      let carDiagramBytes: Uint8Array | undefined;
+      try {
+        carDiagramBytes = diagramBytes ? await processCarDiagramPng(diagramBytes) : undefined;
+      } catch (e) {
+        console.warn(`[pdf] diagram processing failed:`, e instanceof Error ? e.message : e);
+      }
+      pdfBytes = await generateJobPDF(jobData, {
+        locale: getLocaleFromRequest(req),
+        bannerBytes,
+        carDiagramBytes,
+        receipt,
+      });
     }
-
-    const locale = getLocaleFromRequest(req);
-    const pdfBytes = await generateJobPDF(job as unknown as JobType, {
-      locale,
-      bannerBytes,
-      carDiagramBytes,
-      includePrice: receipt,
-    });
 
     const safeName = job.customerName
       ? job.customerName.replace(/[^a-z0-9]/gi, "_").toLowerCase()
       : "unknown";
-    const filename = receipt
-      ? `job-${safeName}-receipt.pdf`
-      : `job-${safeName}.pdf`;
+    const suffix = { report: "", receipt: "-receipt", report_receipt: "-report-receipt" }[kind];
+    const filename = `job-${safeName}${suffix}.pdf`;
 
     console.log(
       `[pdf] done id=${jobId} ${Math.round(pdfBytes.length / 1024)}KB in ${

@@ -22,7 +22,7 @@ export default function SearchBar({ onSearch, onStatusFilter }: Props) {
     <div className="flex items-center gap-4 mb-4">
       <input
         type="text"
-        placeholder="Search by car number or customer name"
+        placeholder="Search by car name or customer name"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);

@@ -1,4 +1,4 @@
-import type { Job } from "@/types/job";
+import type { Job, VatSnapshot } from "@/types/job";
 import { paymentMethodLabel } from "@/config/paymentMethods";
 import {
   PDF_LABELS_EN,
@@ -8,16 +8,71 @@ import {
 import { bytesToDataUrl } from "@/lib/pdfAssets";
 import { renderHtmlToPdf } from "@/lib/pdfBrowser";
 import { buildReportHtml, type ReportIssue } from "@/lib/pdfTemplate";
+import { buildReceiptHtml, renderReceipt, type ReceiptData } from "@/lib/receiptTemplate";
+import { splitVatInclusive } from "@/lib/vat";
+import { carNameOf } from "@/lib/serializeJob";
 import { translateBatch } from "@/lib/translate";
 
 type GenerateJobPDFOptions = {
   locale?: string;
   bannerBytes?: Uint8Array;
   carDiagramBytes?: Uint8Array;
-  includePrice?: boolean;
+  /** Appends the receipt as the last page. */
+  receipt?: ReceiptData | null;
 };
 
 const TIMEZONE = "Asia/Dubai";
+
+function formatDate(value: string | Date | null | undefined): string {
+  const date = value ? new Date(value) : new Date();
+  return (Number.isNaN(date.getTime()) ? new Date() : date).toLocaleDateString("en-GB", {
+    timeZone: TIMEZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/**
+ * Receipt content for a job. The job price already includes VAT; `fallbackVat` is used
+ * for jobs created before VAT was recorded on each job.
+ */
+export function buildReceiptData(
+  job: Job,
+  options: { fallbackVat?: VatSnapshot | null; logoBytes?: Uint8Array } = {}
+): ReceiptData {
+  const vat = job.vat ?? options.fallbackVat ?? null;
+  const vatPercentage = vat && vat.percentage > 0 ? vat.percentage : null;
+  const amounts = splitVatInclusive(Number(job.price) || 0, vatPercentage ?? 0);
+  const paid = Boolean(job.paymentReceivedBy);
+
+  return {
+    logoUrl: options.logoBytes ? bytesToDataUrl(options.logoBytes) : null,
+    registrationNumber: vat?.registrationNumber?.trim() || null,
+    receiptNumber: `RCP-${String(job.jobCount ?? 0).padStart(6, "0")}`,
+    date: formatDate(paid ? job.paymentReceivedAt : job.createdAt),
+    paid,
+    paymentMethod: paymentMethodLabel(job.paymentMethod),
+    customerPhone: job.customerPhone?.trim() || "",
+    carName: carNameOf(job) || "-",
+    chassis: job.engineNumber ? String(job.engineNumber).toUpperCase() : "",
+    service: job.inspectionType?.trim() || "Vehicle inspection",
+    jobNumber: `#${job.jobCount ?? "-"}`,
+    inspector:
+      job.assignedTo && typeof job.assignedTo === "object"
+        ? job.assignedTo.name?.trim() || job.assignedTo.email
+        : "",
+    total: amounts.total,
+    net: amounts.net,
+    vatAmount: amounts.vatAmount,
+    vatPercentage,
+    generatedTimestamp: new Date().toLocaleString("en-GB", { timeZone: TIMEZONE }),
+  };
+}
+
+export async function generateReceiptPDF(receipt: ReceiptData): Promise<Uint8Array> {
+  return renderHtmlToPdf(await buildReceiptHtml(receipt));
+}
 
 async function buildTranslatedContent(
   job: Job,
@@ -81,10 +136,6 @@ export async function generateJobPDF(
   options: GenerateJobPDFOptions = {}
 ): Promise<Uint8Array> {
   const locale = options.locale ?? "en";
-  const includePrice = options.includePrice ?? false;
-  const jobPrice = Math.max(0, Number(job.price) || 0);
-  const showCost = includePrice && jobPrice > 0;
-  const paymentMethod = paymentMethodLabel(job.paymentMethod);
 
   const translateStarted = Date.now();
   const { labels, issues } = await buildTranslatedContent(job, locale);
@@ -113,7 +164,7 @@ export async function generateJobPDF(
     inspectionType,
     metaFields: [
       { label: PDF_LABELS_EN.fileNumber, value: String(job.jobCount ?? fallback) },
-      { label: PDF_LABELS_EN.vehicle, value: job.carNumber || fallback },
+      { label: PDF_LABELS_EN.vehicle, value: carNameOf(job) || fallback },
       {
         label: PDF_LABELS_EN.chassis,
         value: job.engineNumber ? String(job.engineNumber).toUpperCase() : fallback,
@@ -127,11 +178,7 @@ export async function generateJobPDF(
       minor: countSeverity(job, "minor"),
       major: countSeverity(job, "major"),
     },
-    costText: showCost
-      ? `${inspectionType} ${PDF_LABELS_EN.cost}: AED ${jobPrice.toLocaleString(
-          "en-AE"
-        )}${paymentMethod ? ` (${paymentMethod})` : ""}`
-      : null,
+    receiptHtml: options.receipt ? renderReceipt(options.receipt, true) : null,
     generatedTimestamp: new Date().toLocaleString("en-GB", {
       timeZone: TIMEZONE,
     }),

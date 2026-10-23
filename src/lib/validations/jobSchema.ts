@@ -22,7 +22,7 @@ export const inspectionTabSchema = z.object({
 });
 
 export const jobSchema = z.object({
-  carNumber: z.string().min(1, "Car number is required"),
+  carName: z.string().trim().min(1, "Car name is required").max(100),
   customerName: z.string().min(1).optional(),
   customerPhone: z.string().trim().optional(),
   engineNumber: z.string().optional(),
@@ -43,7 +43,7 @@ const optionalNumber = z.preprocess(
 
 /** Fields an editor may change. customerName and createdBy are fixed at creation. */
 export const jobEditSchema = z.strictObject({
-  carNumber: z.string().trim().min(1, "Car number is required").max(50).optional(),
+  carName: z.string().trim().min(1, "Car name is required").max(100).optional(),
   customerPhone: z.string().trim().max(50).optional(),
   engineNumber: z.string().trim().max(100).nullable().optional(),
   odometer: optionalNumber,

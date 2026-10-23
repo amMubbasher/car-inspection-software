@@ -22,7 +22,7 @@ export default function PostJobPage() {
   const prevInspectionTypeRef = useRef<InspectionType | undefined>(undefined);
   const [form, setForm] = useState<Partial<Job>>({
     _id: "",
-    carNumber: "",
+    carName: "",
     customerPhone: "",
     engineNumber: "",
     odometer: undefined,
@@ -113,8 +113,8 @@ export default function PostJobPage() {
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!form.carNumber) {
-      alert("Please enter a car number");
+    if (!form.carName) {
+      alert("Please enter a car name");
       return;
     }
     if (!form.inspectionType) {
@@ -131,7 +131,7 @@ export default function PostJobPage() {
     
     try {
       const payload = {
-        carNumber: form.carNumber,
+        carName: form.carName,
         customerPhone: form.customerPhone,
         engineNumber: form.engineNumber,
         odometer: form.odometer,
@@ -177,13 +177,13 @@ export default function PostJobPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Car Number <span className="text-red-500">*</span>
+                Car Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                placeholder="Car Number"
-                value={form.carNumber}
-                onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
+                placeholder="Car Name"
+                value={form.carName}
+                onChange={(e) => setForm({ ...form, carName: e.target.value })}
                 className={fieldClass}
                 translate="no"
               />

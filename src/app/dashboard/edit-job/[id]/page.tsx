@@ -127,7 +127,7 @@ export default function EditJobPage() {
       return;
     }
     const payload = {
-      carNumber: form.carNumber,
+      carName: form.carName,
       customerPhone: form.customerPhone ?? "",
       engineNumber: form.engineNumber,
       odometer: form.odometer,
@@ -205,12 +205,12 @@ export default function EditJobPage() {
         <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Job Details</h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Car Number</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Car Name</label>
             <input
               type="text"
-              placeholder="Car Number"
-              value={form.carNumber}
-              onChange={(e) => setForm({ ...form, carNumber: e.target.value })}
+              placeholder="Car Name"
+              value={form.carName}
+              onChange={(e) => setForm({ ...form, carName: e.target.value })}
               className={fieldClass}
               translate="no"
             />
