@@ -17,6 +17,16 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+  // Files the PDF route reads from disk at runtime; without this they may be left out of
+  // the serverless bundle and the PDF falls back to a plain header with no car diagram.
+  outputFileTracingIncludes: {
+    "/api/pdf/[id]": [
+      "./public/report-banner.jpeg",
+      "./public/car-diagram.png",
+      "./public/receipt-logo.png",
+      "./public/fonts/**",
+    ],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

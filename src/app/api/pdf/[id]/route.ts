@@ -31,11 +31,17 @@ function pdfKind(searchParams: URLSearchParams): PdfKind {
   return "report";
 }
 
-async function readPublicFile(...segments: string[]): Promise<Uint8Array | undefined> {
+// Paths are written out in full (not built from variables) so the deploy build can see
+// these files and bundle them; next.config.ts also lists them in outputFileTracingIncludes.
+const BANNER_PATH = join(process.cwd(), "public", "report-banner.jpeg");
+const DIAGRAM_PATH = join(process.cwd(), "public", "car-diagram.png");
+const RECEIPT_LOGO_PATH = join(process.cwd(), "public", "receipt-logo.png");
+
+async function readAsset(path: string): Promise<Uint8Array | undefined> {
   try {
-    return new Uint8Array(await readFile(join(process.cwd(), ...segments)));
+    return new Uint8Array(await readFile(path));
   } catch (e) {
-    console.warn(`[pdf] ${segments.join("/")} load failed:`, e instanceof Error ? e.message : e);
+    console.warn(`[pdf] ${path} load failed:`, e instanceof Error ? e.message : e);
     return undefined;
   }
 }
@@ -79,7 +85,7 @@ export async function GET(
         : toVatSnapshot(await Vat.findOne({ isActive: true }).lean());
       receipt = buildReceiptData(jobData, {
         fallbackVat,
-        logoBytes: await readPublicFile("public", "receipt-logo.png"),
+        logoBytes: await readAsset(RECEIPT_LOGO_PATH),
       });
     }
 
@@ -87,8 +93,8 @@ export async function GET(
     if (kind === "receipt") {
       pdfBytes = await generateReceiptPDF(receipt!);
     } else {
-      const bannerBytes = await readPublicFile("public", "report-banner.jpeg");
-      const diagramBytes = await readPublicFile("public", "car-diagram.png");
+      const bannerBytes = await readAsset(BANNER_PATH);
+      const diagramBytes = await readAsset(DIAGRAM_PATH);
       let carDiagramBytes: Uint8Array | undefined;
       try {
         carDiagramBytes = diagramBytes ? await processCarDiagramPng(diagramBytes) : undefined;
