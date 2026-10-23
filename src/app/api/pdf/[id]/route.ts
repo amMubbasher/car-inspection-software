@@ -99,6 +99,8 @@ export async function GET(
         locale: getLocaleFromRequest(req),
         bannerBytes,
         carDiagramBytes,
+        // Report + Receipt keeps the report exactly as the old priced report.
+        includePrice: kind === "report_receipt",
         receipt,
       });
     }

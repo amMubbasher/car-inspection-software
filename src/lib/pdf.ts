@@ -17,6 +17,7 @@ type GenerateJobPDFOptions = {
   locale?: string;
   bannerBytes?: Uint8Array;
   carDiagramBytes?: Uint8Array;
+  includePrice?: boolean;
   /** Appends the receipt as the last page. */
   receipt?: ReceiptData | null;
 };
@@ -136,6 +137,10 @@ export async function generateJobPDF(
   options: GenerateJobPDFOptions = {}
 ): Promise<Uint8Array> {
   const locale = options.locale ?? "en";
+  const includePrice = options.includePrice ?? false;
+  const jobPrice = Math.max(0, Number(job.price) || 0);
+  const showCost = includePrice && jobPrice > 0;
+  const paymentMethod = paymentMethodLabel(job.paymentMethod);
 
   const translateStarted = Date.now();
   const { labels, issues } = await buildTranslatedContent(job, locale);
@@ -178,6 +183,11 @@ export async function generateJobPDF(
       minor: countSeverity(job, "minor"),
       major: countSeverity(job, "major"),
     },
+    costText: showCost
+      ? `${inspectionType} ${PDF_LABELS_EN.cost}: AED ${jobPrice.toLocaleString(
+          "en-AE"
+        )}${paymentMethod ? ` (${paymentMethod})` : ""}`
+      : null,
     receiptHtml: options.receipt ? renderReceipt(options.receipt, true) : null,
     generatedTimestamp: new Date().toLocaleString("en-GB", {
       timeZone: TIMEZONE,

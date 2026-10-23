@@ -16,6 +16,7 @@ export type ReportData = {
   metaFields: Array<{ label: string; value: string }>;
   summary: { okay: number; minor: number; major: number };
   inspectionType: string;
+  costText: string | null;
   /** Receipt markup (from renderReceipt) appended as the last page, if any. */
   receiptHtml: string | null;
   generatedTimestamp: string;
@@ -197,6 +198,10 @@ export async function buildReportHtml(data: ReportData): Promise<string> {
     .filter(Boolean)
     .join(",");
 
+  const costBlock = data.costText
+    ? `<div class="cost" dir="auto">${escapeHtml(data.costText)}</div>`
+    : "";
+
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(data.locale)}"${isRtlLocale(data.locale) ? ' data-rtl="1"' : ""}>
 <head>
@@ -245,6 +250,17 @@ img { display: block; }
 .info-key { color: #333333; }
 .diagram { width: 283pt; display: flex; align-items: center; justify-content: flex-end; }
 .diagram img { max-width: 100%; max-height: 200pt; }
+.cost {
+  margin-top: 10pt;
+  height: 28pt;
+  border: 1pt solid #8c8cbf;
+  background: #ebf0ff;
+  display: flex;
+  align-items: center;
+  padding: 0 10pt;
+  font-size: 12pt;
+  font-weight: bold;
+}
 .summary-heading {
   margin: 18pt 0 12pt;
   font-size: 14pt;
@@ -347,6 +363,7 @@ ${data.receiptHtml ? receiptFontFace(latinUrl) + RECEIPT_CSS : ""}
 <body>
 ${renderHeader(data)}
 ${renderInfoRow(data)}
+${costBlock}
 <div class="summary-heading" dir="auto">${escapeHtml(
     data.labels.summaryHeading
   )}</div>
