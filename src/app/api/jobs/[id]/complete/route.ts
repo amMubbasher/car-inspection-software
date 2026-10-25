@@ -17,7 +17,7 @@ export async function PATCH(
     // Only the assigned inspector can complete their in-progress job.
     const job = await Job.findOneAndUpdate(
       { _id: id, assignedTo: user._id, status: "in_progress" },
-      { status: "completed" },
+      { status: "completed", completedAt: new Date() },
       { new: true }
     );
     if (!job) {

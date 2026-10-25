@@ -49,6 +49,7 @@ export interface Job {
     name?: string;
   } | null;
   rejectionNote?: string;
+  completedAt?: string | null;
   price?: number;
   paymentMethod?: string | null;
   paymentReceivedBy?: {

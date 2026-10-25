@@ -51,7 +51,7 @@ export function buildReceiptData(
     logoUrl: options.logoBytes ? bytesToDataUrl(options.logoBytes) : null,
     registrationNumber: vat?.registrationNumber?.trim() || null,
     receiptNumber: `RCP-${String(job.jobCount ?? 0).padStart(6, "0")}`,
-    date: formatDate(paid ? job.paymentReceivedAt : job.createdAt),
+    date: formatDate(job.createdAt),
     paid,
     paymentMethod: paymentMethodLabel(job.paymentMethod),
     customerPhone: job.customerPhone?.trim() || "",
@@ -158,9 +158,11 @@ export async function generateJobPDF(
       ? assignee.name?.trim() || assignee.email
       : "") || fallback;
   const inspectionType = job.inspectionType?.trim() || fallback;
-  const reportDate = new Date().toLocaleDateString("en-GB", {
-    timeZone: TIMEZONE,
-  });
+  // The job's creation date, not the download date.
+  const createdAt = job.createdAt ? new Date(job.createdAt) : null;
+  const reportDate = createdAt && !Number.isNaN(createdAt.getTime())
+    ? createdAt.toLocaleDateString("en-GB", { timeZone: TIMEZONE })
+    : fallback;
 
   const html = await buildReportHtml({
     locale,
