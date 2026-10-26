@@ -9,9 +9,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // images: {
-  //   domains: ['res.cloudinary.com'], //  Allow Cloudinary images
-  // },
  eslint: {
     ignoreDuringBuilds: true,
   },

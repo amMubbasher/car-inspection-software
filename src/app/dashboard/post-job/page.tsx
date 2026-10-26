@@ -32,51 +32,6 @@ export default function PostJobPage() {
     inspectionTabs: [],
   });
 
-  // const uploadToCloudinary = async (file: File) => {
-  //   const url = `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`;
-  //   const formData = new FormData();
-  //   formData.append("file", file);
-  //   formData.append(
-  //     "upload_preset",
-  //     process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || ""
-  //   );
-
-  //   const res = await fetch(url, { method: "POST", body: formData });
-  //   if (!res.ok) throw new Error("Cloudinary upload failed");
-  //   const data = await res.json();
-  //   return data.secure_url as string;
-  // };
-
-  // const handleFileChange = async (
-  //   tabKey: string,
-  //   issueKey: string,
-  //   files: FileList | null
-  // ) => {
-  //   if (!files) return;
-  //   try {
-  //     const uploadedUrls = await Promise.all(
-  //       Array.from(files).map((file) => uploadToCloudinary(file))
-  //     );
-  //     setForm((prev) => ({
-  //       ...prev,
-  //       inspectionTabs: prev.inspectionTabs.map((tab) =>
-  //         tab.key === tabKey
-  //           ? {
-  //               ...tab,
-  //               subIssues: tab.subIssues.map((issue) =>
-  //                 issue.key === issueKey
-  //                   ? { ...issue, images: [...issue.images, ...uploadedUrls] }
-  //                   : issue
-  //               ),
-  //             }
-  //           : tab
-  //       ),
-  //     }));
-  //   } catch (error) {
-  //     console.error("Image upload failed", error);
-  //   }
-  // };
-
   // Update inspection tabs when inspection type changes
   useEffect(() => {
     if (form.inspectionType && prevInspectionTypeRef.current !== form.inspectionType) {
