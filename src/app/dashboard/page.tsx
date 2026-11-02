@@ -100,11 +100,13 @@ export default function Dashboard() {
   const fetchJobs = async (currentPage = page) => {
     const requestId = ++fetchRequestId.current;
     setIsRefreshing(true);
+    // A search looks through all dates; the date range applies only when not searching.
+    const useDates = !debouncedSearch;
     const params = new URLSearchParams({
       page: currentPage.toString(),
       limit: String(PAGE_SIZE),
-      ...(startDate && { startDate: localDayBound(startDate, "start") }),
-      ...(endDate && { endDate: localDayBound(endDate, "end") }),
+      ...(useDates && startDate && { startDate: localDayBound(startDate, "start") }),
+      ...(useDates && endDate && { endDate: localDayBound(endDate, "end") }),
       ...(inspectorId && canFilterByUser && { assignedTo: inspectorId }),
       ...(debouncedSearch && { q: debouncedSearch }),
       ...(statusFilter && { status: statusFilter }),
