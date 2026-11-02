@@ -140,6 +140,9 @@ export default function Dashboard() {
 
   const handleStatus = (status: string) => setStatusFilter(status === "all" ? "" : status);
 
+  // Also counts the short pause after typing, before the search request starts.
+  const isLoading = isRefreshing || searchQuery.trim() !== debouncedSearch;
+
   const selected = jobs.find((job) => job._id === selectedId) ?? null;
   const rangeStart = jobs.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = (page - 1) * PAGE_SIZE + jobs.length;
@@ -233,10 +236,10 @@ export default function Dashboard() {
                   Your account does not have permission to view jobs. Contact an administrator.
                 </p>
               </div>
-            ) : isInitialLoad ? (
+            ) : isInitialLoad || (isLoading && jobs.length === 0) ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
                 <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
-                <p className="font-medium">Loading jobs...</p>
+                <p className="font-medium">{searchQuery.trim() ? "Searching jobs..." : "Loading jobs..."}</p>
               </div>
             ) : jobs.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
@@ -249,7 +252,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="relative">
-                  {isRefreshing && (
+                  {isLoading && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-gray-900/70">
                       <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
                     </div>
