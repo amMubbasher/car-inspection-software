@@ -1,6 +1,6 @@
 import type { PdfLabels } from "@/lib/pdfLabels";
 import { PDF_LABELS_EN } from "@/lib/pdfLabels";
-import { fontDataUrl, isRtlLocale, scriptFontFile } from "@/lib/pdfAssets";
+import { fontDataUrl, fontFormat, isRtlLocale, scriptFontFile } from "@/lib/pdfAssets";
 import { RECEIPT_CSS, receiptFontFace } from "@/lib/receiptTemplate";
 
 export type ReportIssue = {
@@ -49,7 +49,11 @@ function auto(value: string): string {
   return `<span dir="auto">${escapeHtml(value)}</span>`;
 }
 
-function buildFontFaces(latinUrl: string | null, scriptUrl: string | null): string {
+function buildFontFaces(
+  latinUrl: string | null,
+  scriptUrl: string | null,
+  scriptFormat = "truetype"
+): string {
   const faces: string[] = [];
 
   if (latinUrl) {
@@ -59,7 +63,7 @@ function buildFontFaces(latinUrl: string | null, scriptUrl: string | null): stri
   }
   if (scriptUrl) {
     faces.push(
-      `@font-face{font-family:'ReportScript';src:url('${scriptUrl}') format('truetype');font-weight:normal;font-style:normal;font-display:block;}`
+      `@font-face{font-family:'ReportScript';src:url('${scriptUrl}') format('${scriptFormat}');font-weight:normal;font-style:normal;font-display:block;}`
     );
   }
 
@@ -207,7 +211,7 @@ export async function buildReportHtml(data: ReportData): Promise<string> {
 <head>
 <meta charset="utf-8">
 <style>
-${buildFontFaces(latinUrl, scriptUrl)}
+${buildFontFaces(latinUrl, scriptUrl, scriptFile ? fontFormat(scriptFile) : undefined)}
 @page { size: A4; margin: 40pt; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -357,7 +361,7 @@ img { display: block; }
 .signature { display: flex; justify-content: flex-end; margin-top: 14pt; }
 .signature-line { width: 170pt; border-top: 1pt solid #000000; }
 .generated { margin-top: 12pt; font-size: 9pt; color: #808080; }
-${data.receiptHtml ? receiptFontFace(latinUrl) + RECEIPT_CSS : ""}
+${data.receiptHtml ? receiptFontFace(latinUrl, scriptUrl, scriptFile) + RECEIPT_CSS : ""}
 </style>
 </head>
 <body>

@@ -23,7 +23,13 @@ export function scriptFontFile(locale: string): string | null {
   if (base === "hi" || base === "bn" || base === "mr" || base === "ne") {
     return "NotoSansDevanagari-Regular.ttf";
   }
+  if (base === "zh") return "NotoSansSC-Regular.otf";
   return null;
+}
+
+/** CSS `format()` hint for a font file. */
+export function fontFormat(fileName: string): string {
+  return fileName.endsWith(".otf") ? "opentype" : "truetype";
 }
 
 async function toDataUrl(path: string, mime: string): Promise<string | null> {

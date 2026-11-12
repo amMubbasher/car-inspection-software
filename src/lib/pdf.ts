@@ -5,10 +5,16 @@ import {
   PDF_TRANSLATABLE_LABEL_KEYS,
   type PdfLabels,
 } from "@/lib/pdfLabels";
-import { bytesToDataUrl } from "@/lib/pdfAssets";
+import { baseLocale, bytesToDataUrl } from "@/lib/pdfAssets";
 import { renderHtmlToPdf } from "@/lib/pdfBrowser";
 import { buildReportHtml, type ReportIssue } from "@/lib/pdfTemplate";
-import { buildReceiptHtml, renderReceipt, type ReceiptData } from "@/lib/receiptTemplate";
+import {
+  buildReceiptHtml,
+  RECEIPT_LABELS_EN,
+  renderReceipt,
+  type ReceiptData,
+  type ReceiptLabels,
+} from "@/lib/receiptTemplate";
 import { splitVatInclusive } from "@/lib/vat";
 import { carNameOf } from "@/lib/serializeJob";
 import { translateBatch } from "@/lib/translate";
@@ -48,6 +54,8 @@ export function buildReceiptData(
   const paid = Boolean(job.paymentReceivedBy);
 
   return {
+    locale: "en",
+    labels: { ...RECEIPT_LABELS_EN },
     logoUrl: options.logoBytes ? bytesToDataUrl(options.logoBytes) : null,
     registrationNumber: vat?.registrationNumber?.trim() || null,
     receiptNumber: `RCP-${String(job.jobCount ?? 0).padStart(6, "0")}`,
@@ -68,6 +76,37 @@ export function buildReceiptData(
     vatAmount: amounts.vatAmount,
     vatPercentage,
     generatedTimestamp: new Date().toLocaleString("en-GB", { timeZone: TIMEZONE }),
+  };
+}
+
+/**
+ * Fixed wording for short receipt labels that machine translation gets wrong out of context
+ * (e.g. "PAID" as "salaried", "Total" as "all of it").
+ */
+const RECEIPT_LABEL_OVERRIDES: Record<string, Partial<ReceiptLabels>> = {
+  zh: { total: "合计", paid: "已付款", unpaid: "未付款", inspector: "检验员" },
+};
+
+/** Translates the receipt's wording, service name and payment method into `locale`. */
+export async function localizeReceipt(receipt: ReceiptData, locale: string): Promise<ReceiptData> {
+  if (!locale || locale === "en") return receipt;
+
+  const keys = Object.keys(RECEIPT_LABELS_EN) as (keyof ReceiptLabels)[];
+  const texts = [...keys.map((key) => RECEIPT_LABELS_EN[key]), receipt.service, receipt.paymentMethod];
+  const translated = await translateBatch(texts, locale);
+
+  const labels = { ...RECEIPT_LABELS_EN };
+  keys.forEach((key, i) => {
+    labels[key] = translated[i] || RECEIPT_LABELS_EN[key];
+  });
+  Object.assign(labels, RECEIPT_LABEL_OVERRIDES[baseLocale(locale)]);
+
+  return {
+    ...receipt,
+    locale,
+    labels,
+    service: translated[keys.length] || receipt.service,
+    paymentMethod: receipt.paymentMethod ? translated[keys.length + 1] || receipt.paymentMethod : "",
   };
 }
 

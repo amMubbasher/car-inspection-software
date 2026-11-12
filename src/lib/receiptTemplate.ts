@@ -2,9 +2,36 @@
 // Rendered on its own, or appended to the inspection report as an extra page; every class
 // is prefixed with "rc-" so it can't clash with the report's CSS.
 import { COMPANY } from "@/config/company";
-import { fontDataUrl } from "@/lib/pdfAssets";
+import { fontDataUrl, fontFormat, isRtlLocale, scriptFontFile } from "@/lib/pdfAssets";
+
+/** Receipt wording in English; translated per download (see localizeReceipt in pdf.ts). */
+export const RECEIPT_LABELS_EN = {
+  taxInvoice: "Tax Invoice",
+  receipt: "Receipt",
+  receiptNo: "Receipt no.",
+  date: "Date",
+  jobNo: "Job no.",
+  carName: "Car name",
+  chassis: "Chassis number",
+  customerPhone: "Customer phone",
+  inspector: "Inspector",
+  subtotal: "Subtotal (excl. VAT)",
+  vat: "VAT",
+  total: "Total",
+  inclusiveOfVat: "Inclusive of VAT",
+  paymentMethod: "Payment method",
+  paid: "PAID",
+  unpaid: "UNPAID",
+  thankYou: "Thank you for choosing",
+  generatedOn: "Generated on",
+};
+
+export type ReceiptLabels = typeof RECEIPT_LABELS_EN;
 
 export type ReceiptData = {
+  /** Language the receipt is written in; "en" when not translated. */
+  locale: string;
+  labels: ReceiptLabels;
   logoUrl: string | null;
   /** VAT registration number (TRN); null when no VAT is set up. */
   registrationNumber: string | null;
@@ -45,15 +72,33 @@ function percent(value: number): string {
   return `${Number(value.toFixed(2))}%`;
 }
 
-/** NotoSans-Regular.ttf is a variable font, so declaring its weight range gives real bold/black. */
-export function receiptFontFace(latinUrl: string | null): string {
-  return latinUrl
-    ? `@font-face{font-family:'ReceiptLatin';src:url('${latinUrl}') format('truetype');font-weight:100 900;font-display:block;}`
-    : "";
+/**
+ * NotoSans-Regular.ttf is a variable font, so declaring its weight range gives real bold/black.
+ * The script font (Arabic, Devanagari, Chinese) covers the characters Latin can't; its weight
+ * range lets Chrome use it for bold text too.
+ */
+export function receiptFontFace(
+  latinUrl: string | null,
+  scriptUrl: string | null = null,
+  scriptFile: string | null = null
+): string {
+  const faces: string[] = [];
+  if (latinUrl) {
+    faces.push(
+      `@font-face{font-family:'ReceiptLatin';src:url('${latinUrl}') format('truetype');font-weight:100 900;font-display:block;}`
+    );
+  }
+  if (scriptUrl && scriptFile) {
+    faces.push(
+      `@font-face{font-family:'ReceiptScript';src:url('${scriptUrl}') format('${fontFormat(scriptFile)}');font-weight:100 900;font-display:block;}`
+    );
+  }
+  return faces.join("");
 }
 
 export const RECEIPT_CSS = `
-.rc { font-family: 'ReceiptLatin', Arial, Helvetica, sans-serif; color: #1f2937; font-size: 10pt; line-height: 1.45; }
+.rc { font-family: 'ReceiptLatin', 'ReceiptScript', Arial, Helvetica, sans-serif; color: #1f2937; font-size: 10pt; line-height: 1.45; }
+.rc[dir="rtl"] .rc-val, .rc[dir="rtl"] .rc-vat-note { text-align: left; }
 .rc-page { break-before: page; page-break-before: always; }
 .rc-paper { width: 330pt; margin: 6pt auto 0; padding: 26pt 24pt 22pt; background: #ffffff; border: 1pt solid #e5e7eb; border-radius: 4pt; box-shadow: 0 1pt 6pt rgba(17, 24, 39, 0.06); }
 
@@ -92,35 +137,38 @@ export const RECEIPT_CSS = `
 /** The receipt body. `asExtraPage` starts it on a new page (when appended to the report). */
 export function renderReceipt(data: ReceiptData, asExtraPage = false): string {
   const hasVat = data.vatPercentage !== null;
+  const t = data.labels;
+  // Values such as amounts, phone numbers and chassis keep their own direction in RTL receipts.
   const line = (key: string, value: string) =>
-    `<div class="rc-line"><span class="rc-key">${escapeHtml(key)}</span><span class="rc-val">${escapeHtml(value || "-")}</span></div>`;
+    `<div class="rc-line"><span class="rc-key">${escapeHtml(key)}</span><span class="rc-val" dir="auto">${escapeHtml(value || "-")}</span></div>`;
 
-  const vehicle = [line("Car name", data.carName)];
-  if (data.chassis) vehicle.push(line("Chassis number", data.chassis));
-  if (data.customerPhone) vehicle.push(line("Customer phone", data.customerPhone));
-  vehicle.push(line("Inspector", data.inspector));
+  const vehicle = [line(t.carName, data.carName)];
+  if (data.chassis) vehicle.push(line(t.chassis, data.chassis));
+  if (data.customerPhone) vehicle.push(line(t.customerPhone, data.customerPhone));
+  vehicle.push(line(t.inspector, data.inspector));
 
   const amounts = hasVat
-    ? line("Subtotal (excl. VAT)", money(data.net)) +
-      line(`VAT (${percent(data.vatPercentage!)})`, money(data.vatAmount))
+    ? line(t.subtotal, money(data.net)) +
+      line(`${t.vat} (${percent(data.vatPercentage!)})`, money(data.vatAmount))
     : "";
 
-  return `<section class="rc${asExtraPage ? " rc-page" : ""}" dir="ltr">
+  const dir = isRtlLocale(data.locale) ? "rtl" : "ltr";
+  return `<section class="rc${asExtraPage ? " rc-page" : ""}" dir="${dir}" lang="${escapeHtml(data.locale)}">
 <div class="rc-paper">
   <div class="rc-header">
     ${data.logoUrl ? `<img class="rc-logo" src="${data.logoUrl}" alt="">` : ""}
     <div class="rc-name">${escapeHtml(COMPANY.name)}</div>
     <div class="rc-tagline">${escapeHtml(COMPANY.tagline)}</div>
-    <div class="rc-contact">${escapeHtml(COMPANY.addressLines.join(" "))}<br>${escapeHtml(COMPANY.phone)}</div>
-    ${data.registrationNumber ? `<div class="rc-trn">TRN: ${escapeHtml(data.registrationNumber)}</div>` : ""}
+    <div class="rc-contact" dir="ltr">${escapeHtml(COMPANY.addressLines.join(" "))}<br>${escapeHtml(COMPANY.phone)}</div>
+    ${data.registrationNumber ? `<div class="rc-trn" dir="ltr">TRN: ${escapeHtml(data.registrationNumber)}</div>` : ""}
   </div>
 
-  <div class="rc-title">${hasVat ? "Tax Invoice" : "Receipt"}</div>
+  <div class="rc-title">${escapeHtml(hasVat ? t.taxInvoice : t.receipt)}</div>
 
   <div class="rc-cut"></div>
-  ${line("Receipt no.", data.receiptNumber)}
-  ${line("Date", data.date)}
-  ${line("Job no.", data.jobNumber)}
+  ${line(t.receiptNo, data.receiptNumber)}
+  ${line(t.date, data.date)}
+  ${line(t.jobNo, data.jobNumber)}
 
   <div class="rc-cut"></div>
   ${vehicle.join("")}
@@ -130,35 +178,39 @@ export function renderReceipt(data: ReceiptData, asExtraPage = false): string {
     <div>
       <div class="rc-item-name">${escapeHtml(data.service)}</div>
     </div>
-    <div class="rc-item-price">${money(hasVat ? data.net : data.total)}</div>
+    <div class="rc-item-price" dir="ltr">${money(hasVat ? data.net : data.total)}</div>
   </div>
 
   ${hasVat ? `<div class="rc-cut"></div>${amounts}` : ""}
   <div class="rc-total">
-    <span class="rc-total-label">Total</span>
-    <span class="rc-total-value">${money(data.total)}</span>
+    <span class="rc-total-label">${escapeHtml(t.total)}</span>
+    <span class="rc-total-value" dir="ltr">${money(data.total)}</span>
   </div>
-  ${hasVat ? `<div class="rc-vat-note">Inclusive of VAT ${percent(data.vatPercentage!)}</div>` : ""}
+  ${hasVat ? `<div class="rc-vat-note">${escapeHtml(t.inclusiveOfVat)} <span dir="ltr">${percent(data.vatPercentage!)}</span></div>` : ""}
 
   <div class="rc-cut"></div>
-  ${line("Payment method", data.paymentMethod)}
+  ${line(t.paymentMethod, data.paymentMethod)}
   <div class="rc-status" style="margin-top:8pt">
-    <span class="rc-badge ${data.paid ? "rc-badge-paid" : "rc-badge-unpaid"}">${data.paid ? "PAID" : "UNPAID"}</span>
+    <span class="rc-badge ${data.paid ? "rc-badge-paid" : "rc-badge-unpaid"}">${escapeHtml(data.paid ? t.paid : t.unpaid)}</span>
   </div>
 
   <div class="rc-cut"></div>
-  <div class="rc-thanks">Thank you for choosing ${escapeHtml(COMPANY.name)}</div>
-  <div class="rc-foot">Generated on ${escapeHtml(data.generatedTimestamp)}</div>
+  <div class="rc-thanks">${escapeHtml(t.thankYou)} <span dir="ltr">${escapeHtml(COMPANY.name)}</span></div>
+  <div class="rc-foot">${escapeHtml(t.generatedOn)} <span dir="ltr">${escapeHtml(data.generatedTimestamp)}</span></div>
 </div>
 </section>`;
 }
 
 /** A complete HTML document with only the receipt. */
 export async function buildReceiptHtml(data: ReceiptData): Promise<string> {
-  const latinUrl = await fontDataUrl("NotoSans-Regular.ttf");
-  const fontFace = receiptFontFace(latinUrl);
+  const scriptFile = scriptFontFile(data.locale);
+  const [latinUrl, scriptUrl] = await Promise.all([
+    fontDataUrl("NotoSans-Regular.ttf"),
+    scriptFile ? fontDataUrl(scriptFile) : Promise.resolve(null),
+  ]);
+  const fontFace = receiptFontFace(latinUrl, scriptUrl, scriptFile);
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapeHtml(data.locale)}">
 <head>
 <meta charset="utf-8">
 <style>

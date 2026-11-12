@@ -9,7 +9,7 @@ import {
   routeError,
 } from "@/lib/rbac/server";
 import { jobScope } from "@/lib/rbac/jobs";
-import { buildReceiptData, generateJobPDF, generateReceiptPDF } from "@/lib/pdf";
+import { buildReceiptData, generateJobPDF, generateReceiptPDF, localizeReceipt } from "@/lib/pdf";
 import { Vat } from "@/models/Vat";
 import { toVatSnapshot } from "@/lib/vat";
 import { getLocaleFromRequest } from "@/lib/translate";
@@ -77,16 +77,20 @@ export async function GET(
     }
 
     const jobData = job as unknown as JobType;
+    const locale = getLocaleFromRequest(req);
     let receipt = null;
     if (wantsReceipt) {
       // Jobs created before VAT was recorded on each job use the currently active VAT.
       const fallbackVat = jobData.vat
         ? null
         : toVatSnapshot(await Vat.findOne({ isActive: true }).lean());
-      receipt = buildReceiptData(jobData, {
-        fallbackVat,
-        logoBytes: await readAsset(RECEIPT_LOGO_PATH),
-      });
+      receipt = await localizeReceipt(
+        buildReceiptData(jobData, {
+          fallbackVat,
+          logoBytes: await readAsset(RECEIPT_LOGO_PATH),
+        }),
+        locale
+      );
     }
 
     let pdfBytes: Uint8Array;
@@ -102,7 +106,7 @@ export async function GET(
         console.warn(`[pdf] diagram processing failed:`, e instanceof Error ? e.message : e);
       }
       pdfBytes = await generateJobPDF(jobData, {
-        locale: getLocaleFromRequest(req),
+        locale,
         bannerBytes,
         carDiagramBytes,
         // Report + Receipt keeps the report exactly as the old priced report.
